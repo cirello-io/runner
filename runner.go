@@ -141,9 +141,9 @@ func startService(ctx context.Context, workDir string, sv *Service) bool {
 		isFirstCommand := idx == 0
 		isLastCommand := idx+1 == len(sv.Cmd)
 		if isFirstCommand && sv.WaitBefore != "" {
-			waitFor(w, sv.WaitBefore)
+			waitFor(ctx, w, sv.WaitBefore)
 		} else if isLastCommand && sv.WaitFor != "" {
-			waitFor(w, sv.WaitFor)
+			waitFor(ctx, w, sv.WaitFor)
 		}
 
 		if err := c.Run(); err != nil {
@@ -154,9 +154,14 @@ func startService(ctx context.Context, workDir string, sv *Service) bool {
 	return true
 }
 
-func waitFor(w io.Writer, target string) {
+func waitFor(ctx context.Context, w io.Writer, target string) {
 	fmt.Fprintln(w, "waiting for", target)
 	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
 		_, err := net.Dial("tcp", target)
 		if err != nil {
 			time.Sleep(250 * time.Millisecond)
