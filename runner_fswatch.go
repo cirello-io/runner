@@ -3,7 +3,6 @@
 package runner
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -49,7 +48,6 @@ func (s Runner) monitorWorkDir() (<-chan struct{}, error) {
 	log.Println("monitoring", len(memo), "directories")
 
 	testFile := func(p, path string) {
-		fmt.Println(p, path)
 		matched, err := filepath.Match(p, filepath.Base(path))
 		if err == nil && matched {
 			ch <- struct{}{}
