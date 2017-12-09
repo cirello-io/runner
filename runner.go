@@ -214,7 +214,7 @@ func prefixedPrinter(r io.Reader, name string) *bufio.Scanner {
 		for scanner.Scan() {
 			fmt.Println(name+":", scanner.Text())
 		}
-		if err := scanner.Err(); err != nil && err != os.ErrClosed {
+		if err := scanner.Err(); err != nil && err != os.ErrClosed && err != io.ErrClosedPipe {
 			fmt.Println(name+":", "error:", err)
 		}
 	}()
