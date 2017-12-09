@@ -112,7 +112,8 @@ func (s Runner) monitorWorkDir() (<-chan struct{}, error) {
 	ch := make(chan struct{})
 
 	go func() {
-		for range time.Tick(2 * time.Second) {
+		tries := 0
+		for range time.Tick(100 * time.Millisecond) {
 			currentHash, err := s.calculateObservablesHash()
 			if err != nil {
 				log.Println("can't calculate work dir hash on tick:", err)
@@ -121,7 +122,13 @@ func (s Runner) monitorWorkDir() (<-chan struct{}, error) {
 			if lastHash != currentHash {
 				lastHash = currentHash
 				ch <- struct{}{}
+				tries = 0
+				continue
 			}
+			if tries < 5 {
+				tries++
+			}
+			time.Sleep(time.Duration(tries) * time.Second)
 		}
 	}()
 
