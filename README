@@ -1,0 +1,3 @@
+go get [-u] cirello.io/runner
+
+http://godoc.org/cirello.io/runner
