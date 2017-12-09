@@ -67,6 +67,7 @@ func main() {
 		log.Fatalln("cannot parse spec file:", err)
 	}
 
+	s.WorkDir = os.ExpandEnv(s.WorkDir)
 	if s.WorkDir == "" {
 		wd, err := os.Getwd()
 		if err != nil {
