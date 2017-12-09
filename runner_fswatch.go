@@ -46,6 +46,7 @@ func (s Runner) monitorWorkDir() (<-chan struct{}, error) {
 	if err != nil {
 		return nil, err
 	}
+	log.Println("monitoring", len(memo), "directories")
 
 	testFile := func(p, path string) {
 		fmt.Println(p, path)
