@@ -68,19 +68,12 @@ func (s Runner) Start() error {
 		return err
 	}
 
-	var ctx context.Context
-	var cancel context.CancelFunc = func() {}
-
-	go func() {
-		for {
-			ctx, cancel = context.WithCancel(context.Background())
-			s.startServices(ctx)
-		}
-	}()
-	for range updates {
+	for {
+		ctx, cancel := context.WithCancel(context.Background())
+		go s.startServices(ctx)
+		<-updates
 		cancel()
 	}
-	return nil
 }
 
 func (s Runner) startServices(ctx context.Context) {
