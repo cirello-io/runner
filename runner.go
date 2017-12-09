@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"os"
 	"os/exec"
@@ -74,7 +75,11 @@ func (s Runner) Start() error {
 }
 
 func (s Runner) startServices(ctx context.Context) {
-	var wgBuild sync.WaitGroup
+	var (
+		wgBuild    sync.WaitGroup
+		mu         sync.Mutex
+		anyFailure = false
+	)
 	for _, sv := range s.Services {
 		if !strings.HasPrefix(sv.Name, "build") {
 			continue
@@ -82,10 +87,19 @@ func (s Runner) startServices(ctx context.Context) {
 		wgBuild.Add(1)
 		go func(sv *Service) {
 			defer wgBuild.Done()
-			startService(ctx, s.WorkDir, sv)
+			if !startService(ctx, s.WorkDir, sv) {
+				mu.Lock()
+				anyFailure = true
+				mu.Unlock()
+			}
 		}(sv)
 	}
 	wgBuild.Wait()
+
+	if anyFailure {
+		log.Println("error during build, halted")
+		return
+	}
 
 	var wgRun sync.WaitGroup
 	for _, sv := range s.Services {
@@ -101,7 +115,7 @@ func (s Runner) startServices(ctx context.Context) {
 	wgRun.Wait()
 }
 
-func startService(ctx context.Context, workDir string, sv *Service) {
+func startService(ctx context.Context, workDir string, sv *Service) bool {
 	r, w := io.Pipe()
 	prefixedPrinter(r, sv.Name)
 	defer w.Close()
@@ -134,8 +148,10 @@ func startService(ctx context.Context, workDir string, sv *Service) {
 
 		if err := c.Run(); err != nil {
 			fmt.Fprintf(w, "exec error %s: (%s) %v\n", sv.Name, cmd, err)
+			return false
 		}
 	}
+	return true
 }
 
 func waitFor(w io.Writer, target string) {
