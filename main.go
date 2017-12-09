@@ -12,6 +12,12 @@ runner.json:
 		"skipdirs":[ "/vendor" ],
 		"services":[
 			{
+				"name": "build",
+				"cmd": [
+					"make all"
+				]
+			},
+			{
 				"name": "name",
 				"cmd": [
 					"go build",
@@ -34,6 +40,8 @@ Points of note: workdir follow the same rules for exec.Command.Dir, observables
 uses filepath.Match on top of filepath.Base of full paths; skipDirs are relative
 to workdir; each command in cmd are executed in isolated shells, they share no
 state with each other.
+
+Services name "build" will always be executed first and in order of declaration.
 */
 package main // import "cirello.io/runner"
 

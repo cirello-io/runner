@@ -23,6 +23,8 @@ import (
 // it will wait for network readiness on the defined target before executing the
 // first command. If WaitFor is defined, it will wait for network readiness on
 // the defined target before executing the last command.
+// Services named as "build" are special, they are executed first in preparation
+// for all other services, upon their completion the application initialized.
 type Service struct {
 	// Name of the service
 	Name string
@@ -82,17 +84,31 @@ func (s Runner) Start() error {
 }
 
 func (s Runner) startServices(ctx context.Context) {
-	var wg sync.WaitGroup
-
+	var wgBuild sync.WaitGroup
 	for _, sv := range s.Services {
-		wg.Add(1)
+		if !strings.HasPrefix(sv.Name, "build") {
+			continue
+		}
+		wgBuild.Add(1)
 		go func(sv *Service) {
-			defer wg.Done()
+			defer wgBuild.Done()
 			startService(ctx, s.WorkDir, sv)
 		}(sv)
 	}
+	wgBuild.Wait()
 
-	wg.Wait()
+	var wgRun sync.WaitGroup
+	for _, sv := range s.Services {
+		if strings.HasPrefix(sv.Name, "build") {
+			continue
+		}
+		wgRun.Add(1)
+		go func(sv *Service) {
+			defer wgRun.Done()
+			startService(ctx, s.WorkDir, sv)
+		}(sv)
+	}
+	wgRun.Wait()
 }
 
 func (s Runner) monitorWorkDir() (<-chan struct{}, error) {
