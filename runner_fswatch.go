@@ -44,9 +44,10 @@ func (s Runner) monitorWorkDir() (<-chan struct{}, error) {
 					return filepath.SkipDir
 				}
 			}
+			return nil
 		}
 		for _, p := range s.Observables {
-			if matched, err := filepath.Match(p, filepath.Base(path)); err == nil && matched {
+			if match(p, path) {
 				dir := filepath.Dir(path)
 				if _, ok := memo[dir]; !ok {
 					memo[dir] = struct{}{}
@@ -61,12 +62,6 @@ func (s Runner) monitorWorkDir() (<-chan struct{}, error) {
 	}
 	log.Println("monitoring", len(memo), "directories")
 
-	testFile := func(p, path string) {
-		matched, err := filepath.Match(p, filepath.Base(path))
-		if err == nil && matched {
-			ch <- struct{}{}
-		}
-	}
 	go func() {
 		for {
 			select {
@@ -75,7 +70,9 @@ func (s Runner) monitorWorkDir() (<-chan struct{}, error) {
 					continue
 				}
 				for _, p := range s.Observables {
-					testFile(p, event.Name)
+					if match(p, event.Name) {
+						ch <- struct{}{}
+					}
 				}
 			case err := <-watcher.Errors:
 				log.Println("fswatch error:", err)

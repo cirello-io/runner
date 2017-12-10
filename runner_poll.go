@@ -69,9 +69,10 @@ func (s Runner) calculateObservablesHash() (string, error) {
 					return filepath.SkipDir
 				}
 			}
+			return nil
 		}
 		for _, p := range s.Observables {
-			if matched, err := filepath.Match(p, filepath.Base(path)); err == nil && matched {
+			if match(p, path) {
 				fmt.Fprintln(hash, p, path, info.Name(), info.Size(), info.ModTime())
 			}
 		}
