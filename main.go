@@ -14,7 +14,7 @@
 
 /*
 Command runner is a very ugly and simple structured command executer that
-monitor file changes to trigger service restarts.
+monitor file changes to trigger process restarts.
 
 Create a file name Procfile in the root of the project you want to run, and add
 the following content:
@@ -25,10 +25,7 @@ the following content:
 	build-server: make server
 	web: restart=always waitfor=localhost:8888 ./server serve
 
-On each process type, you can declare "waitfor=hostname:port" to check for the
-readiness of a dependency through a network check.
-
-Special service names:
+Special process types:
 
 - workdir: the working directory. Environment variables are expanded. It follows
 the same rules for exec.Command.Dir.
@@ -42,11 +39,11 @@ typically vendor directories.
 - build*: process type name prefixed by "build" are always executed first and in
 order of declaration. On failure, they halt the initialization.
 
-- waitfor (in service): target hostname and port that the runner will probe
-before starting the service.
+- waitfor (in process type): target hostname and port that the runner will probe
+before starting the process type.
 
-- restart (in service): "always" will restart the service every time; "fail"
-will restart the service on failure.
+- restart (in process type): "always" will restart the process type every time;
+"fail" will restart the process type on failure.
 */
 package main // import "cirello.io/runner"
 

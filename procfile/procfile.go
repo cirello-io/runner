@@ -36,11 +36,11 @@
 // - ignore: a space separated list of ignored directories relative to workdir,
 // typically vendor directories.
 //
-// - waitfor (in service): target hostname and port that the runner will probe
-// before starting the service.
+// - waitfor (in process type): target hostname and port that the runner will
+// probe before starting the process type.
 //
-// - restart (in service): "always" will restart the service every time; "fail"
-// will restart the service on failure.
+// - restart (in process type): "always" will restart the process type every
+// time; "fail" will restart the process type on failure.
 //
 package procfile // import "cirello.io/runner/procfile"
 
@@ -78,23 +78,23 @@ func Parse(r io.Reader) (runner.Runner, error) {
 		case "ignore":
 			rnr.SkipDirs = strings.Split(command, " ")
 		default:
-			svc := runner.Service{Name: procType}
+			proc := runner.ProcessType{Name: procType}
 			parts := strings.Split(command, " ")
 			var command []string
 			for _, part := range parts {
 				if strings.HasPrefix(part, "waitfor=") {
-					svc.WaitFor = strings.TrimPrefix(part, "waitfor=")
+					proc.WaitFor = strings.TrimPrefix(part, "waitfor=")
 					continue
 				}
 				if strings.HasPrefix(part, "restart=") {
 					restartMode := strings.TrimPrefix(part, "restart=")
-					svc.Restart = runner.ParseRestartMode(restartMode)
+					proc.Restart = runner.ParseRestartMode(restartMode)
 					continue
 				}
 				command = append(command, part)
 			}
-			svc.Cmd = []string{strings.TrimSpace(strings.Join(command, " "))}
-			rnr.Services = append(rnr.Services, &svc)
+			proc.Cmd = []string{strings.TrimSpace(strings.Join(command, " "))}
+			rnr.Processes = append(rnr.Processes, &proc)
 		}
 	}
 

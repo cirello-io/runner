@@ -43,14 +43,14 @@ malformed-line`
 		WorkDir:     os.ExpandEnv("$GOPATH/src/github.com/example/go-app"),
 		Observables: []string{"*.go", "*.js"},
 		SkipDirs:    []string{"/vendor"},
-		Services: []*runner.Service{
-			&runner.Service{
+		Processes: []*runner.ProcessType{
+			&runner.ProcessType{
 				Name:       "build-server",
 				Cmd:        []string{"make server"},
 				WaitBefore: "",
 				WaitFor:    "",
 			},
-			&runner.Service{
+			&runner.ProcessType{
 				Name: "web",
 				Cmd: []string{
 					"./server serve",
@@ -59,7 +59,7 @@ malformed-line`
 				WaitFor:    "localhost:8888",
 				Restart:    runner.Always,
 			},
-			&runner.Service{
+			&runner.ProcessType{
 				Name: "web2",
 				Cmd: []string{
 					"./server serve",

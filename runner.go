@@ -29,7 +29,7 @@ import (
 	"time"
 )
 
-// RestartMode defines how a service should restart itself.
+// RestartMode defines if a process should restart itself.
 type RestartMode string
 
 // ParseRestartMode takes a string and converts to RestartMode
@@ -51,38 +51,39 @@ const (
 	Never     RestartMode = ""
 )
 
-// Service is the piece of software you want to start. Cmd accepts multiple
+// ProcessType is the piece of software you want to start. Cmd accepts multiple
 // commands. All commands are executed in order of declaration. The last command
-// is considered the call which activates the service. If WaitBefore is defined,
-// it will wait for network readiness on the defined target before executing the
-// first command. If WaitFor is defined, it will wait for network readiness on
-// the defined target before executing the last command.
-// Services named as "build" are special, they are executed first in preparation
-// for all other services, upon their completion the application initialized.
-type Service struct {
-	// Name of the service
+// is considered the call which activates the process type. If WaitBefore is
+// defined, it will wait for network readiness on the defined target before
+// executing the first command. If WaitFor is defined, it will wait for network
+// readiness on the defined target before executing the last command. Process
+// types named as "build" are special, they are executed first in preparation
+// for all other process types, upon their completion the application
+// initialized.
+type ProcessType struct {
+	// Name of the process type
 	Name string
 
-	// Cmd are the commands necessary to start the service. Each command
-	// is executed on its own separated shell. No state is shared across
-	// commands.
+	// Cmd are the commands necessary to start the process type. Each
+	// command is executed on its own separated shell. No state is shared
+	// across commands.
 	Cmd []string
 
-	// WaitBefore is the network address that the service waits to be
-	// available before initiating the service start.
+	// WaitBefore is the network address that the process type waits to be
+	// available before initiating the process type start.
 	WaitBefore string
 
-	// WaitFor is the network address that the service waits to be available
-	// before finalizing the start.
+	// WaitFor is the network address that the process type waits to be
+	// available before finalizing the start.
 	WaitFor string
 
-	// Restart is the flag that forces the service to restart. It means that
-	// all steps are executed upon restart. This option does not apply to
-	// build steps.
+	// Restart is the flag that forces the process type to restart. It means
+	// that all steps are executed upon restart. This option does not apply
+	// to build steps.
 	//
-	// - yes|always: alway restart the service.
-	// - no|<empty>: never restart the service.
-	// - on-failure|fail: restart the service if any of the steps fail.
+	// - yes|always: alway restart the process type.
+	// - no|<empty>: never restart the process type.
+	// - on-failure|fail: restart the process type if any of the steps fail.
 	Restart RestartMode
 }
 
@@ -100,17 +101,18 @@ type Runner struct {
 	// scanning.
 	SkipDirs []string
 
-	// Services is the list of services necessary to start this application.
-	Services []*Service
+	// Processes is the list of processes necessary to start this
+	// application.
+	Processes []*ProcessType
 
-	longestServiceName int
+	longestProcessTypeName int
 }
 
 // Start initiates the application.
 func (r Runner) Start() error {
-	for _, svc := range r.Services {
-		if l := len(svc.Name); l > r.longestServiceName {
-			r.longestServiceName = l
+	for _, proc := range r.Processes {
+		if l := len(proc.Name); l > r.longestProcessTypeName {
+			r.longestProcessTypeName = l
 		}
 	}
 
@@ -121,26 +123,26 @@ func (r Runner) Start() error {
 
 	for {
 		ctx, cancel := context.WithCancel(context.Background())
-		go r.startServices(ctx)
+		go r.startProcesses(ctx)
 		<-updates
 		cancel()
 	}
 }
 
-func (r Runner) startServices(ctx context.Context) {
+func (r Runner) startProcesses(ctx context.Context) {
 	var (
 		wgBuild    sync.WaitGroup
 		mu         sync.Mutex
 		anyFailure = false
 	)
-	for _, sv := range r.Services {
+	for _, sv := range r.Processes {
 		if !strings.HasPrefix(sv.Name, "build") {
 			continue
 		}
 		wgBuild.Add(1)
-		go func(sv *Service) {
+		go func(sv *ProcessType) {
 			defer wgBuild.Done()
-			if !r.startService(ctx, sv) {
+			if !r.startProcess(ctx, sv) {
 				mu.Lock()
 				anyFailure = true
 				mu.Unlock()
@@ -155,15 +157,15 @@ func (r Runner) startServices(ctx context.Context) {
 	}
 
 	var wgRun sync.WaitGroup
-	for _, sv := range r.Services {
+	for _, sv := range r.Processes {
 		if strings.HasPrefix(sv.Name, "build") {
 			continue
 		}
 		wgRun.Add(1)
-		go func(sv *Service) {
+		go func(sv *ProcessType) {
 			defer wgRun.Done()
 			for {
-				ok := r.startService(ctx, sv)
+				ok := r.startProcess(ctx, sv)
 				select {
 				case <-ctx.Done():
 					return
@@ -180,7 +182,7 @@ func (r Runner) startServices(ctx context.Context) {
 	wgRun.Wait()
 }
 
-func (r Runner) startService(ctx context.Context, sv *Service) bool {
+func (r Runner) startProcess(ctx context.Context, sv *ProcessType) bool {
 	pr, pw := io.Pipe()
 	r.prefixedPrinter(pr, sv.Name)
 	defer pw.Close()
@@ -238,7 +240,7 @@ func waitFor(ctx context.Context, w io.Writer, target string) {
 }
 
 func (r Runner) prefixedPrinter(rdr io.Reader, name string) *bufio.Scanner {
-	paddedName := (name + strings.Repeat(" ", r.longestServiceName))[:r.longestServiceName]
+	paddedName := (name + strings.Repeat(" ", r.longestProcessTypeName))[:r.longestProcessTypeName]
 	scanner := bufio.NewScanner(rdr)
 	go func() {
 		for scanner.Scan() {
