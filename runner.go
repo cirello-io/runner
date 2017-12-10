@@ -37,7 +37,7 @@ func ParseRestartMode(m string) RestartMode {
 	switch strings.ToLower(m) {
 	case "yes", "always", "true", "1":
 		return Always
-	case "fail", "failure", "onfailure", "on-failure", "on_failure":
+	case "fail", "failure", "onfail", "onfailure", "on-failure", "on_failure":
 		return OnFailure
 	default:
 		return Never

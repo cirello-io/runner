@@ -30,7 +30,8 @@ func TestParse(t *testing.T) {
 observe: *.go *.js
 ignore: /vendor
 build-server: make server
-web: waitfor=localhost:8888 ./server serve
+web: restart=always waitfor=localhost:8888 ./server serve
+web2: restart=fail waitfor=localhost:8888 ./server serve
 malformed-line`
 
 	got, err := Parse(strings.NewReader(example))
@@ -56,6 +57,16 @@ malformed-line`
 				},
 				WaitBefore: "",
 				WaitFor:    "localhost:8888",
+				Restart:    runner.Always,
+			},
+			&runner.Service{
+				Name: "web2",
+				Cmd: []string{
+					"./server serve",
+				},
+				WaitBefore: "",
+				WaitFor:    "localhost:8888",
+				Restart:    runner.OnFailure,
 			},
 		},
 	}
