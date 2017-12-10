@@ -50,6 +50,7 @@ package main // import "cirello.io/runner"
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -68,6 +69,11 @@ var (
 )
 
 func init() {
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "runner - simple Procfile runner\n\n")
+		fmt.Fprintf(os.Stderr, "usage: %s [-convert] [Procfile]\n\nOptions:\n", os.Args[0])
+		flag.PrintDefaults()
+	}
 	flag.Parse()
 }
 
