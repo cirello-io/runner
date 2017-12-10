@@ -14,7 +14,7 @@ the following content:
 	observe: *.go *.js
 	ignore: /vendor
 	build-server: make server
-	web: waitfor=localhost:8888 ./server serve
+	web: restart=fail waitfor=localhost:8888 ./server serve
 
 On each process type, you can declare "waitfor=hostname:port" to check for the
 readiness of a dependency through a network check.
@@ -31,7 +31,13 @@ filepath.Match internally.
 typically vendor directories.
 
 - build*: process type name prefixed by "build" are always executed first and in
-  order of declaration. On failure, they halt the initialization.
+order of declaration. On failure, they halt the initialization.
+
+- waitfor (in service): target hostname and port that the runner will probe
+before starting the service.
+
+- restart (in service): "always" will restart the service every time; "fail"
+will restart the service on failure.
 
 ## Installation
 `go get [-u] [-tags poll] cirello.io/runner`
