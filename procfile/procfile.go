@@ -52,6 +52,8 @@ func Parse(r io.Reader) (runner.Runner, error) {
 
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
+		// loosen translation of the official regex:
+		// ^*([A-Za-z0-9_-]+):\s*(.+)$
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "//") {
 			continue
