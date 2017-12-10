@@ -1,3 +1,0 @@
-go get [-u] [-tags fswatch] cirello.io/runner
-
-http://godoc.org/cirello.io/runner
