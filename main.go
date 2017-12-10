@@ -23,7 +23,7 @@ the following content:
 	observe: *.go *.js
 	ignore: /vendor
 	build-server: make server
-	web: waitfor=localhost:8888 ./server serve
+	web: restart=always waitfor=localhost:8888 ./server serve
 
 On each process type, you can declare "waitfor=hostname:port" to check for the
 readiness of a dependency through a network check.
