@@ -8,11 +8,14 @@ Create a file name Procfile in the root of the project you want to run.
 	observe: *.go *.js
 	ignore: /vendor
 	build-server: make server
-	web: waitfor=localhost:8888 waitbefore=localhost:2122 ./server serve
+	web: waitfor=localhost:8888 ./server serve
 
 Points of note: workdir follow the same rules for exec.Command.Dir, observe
 uses filepath.Match on top of filepath.Base of full paths; ignore are relative
 to workdir.
+
+In the service, you can declare "waitfor=hostname:port" to check for the
+readiness of a dependency through network check.
 
 Services whose names are prefixed by "build" will always be executed first and
 in order of declaration.

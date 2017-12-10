@@ -49,10 +49,6 @@ func Parse(r io.Reader) (runner.Runner, error) {
 					svc.WaitFor = strings.TrimPrefix(part, "waitfor=")
 					continue
 				}
-				if strings.HasPrefix(part, "waitbefore=") {
-					svc.WaitBefore = strings.TrimPrefix(part, "waitbefore=")
-					continue
-				}
 				command = append(command, part)
 			}
 			svc.Cmd = []string{strings.TrimSpace(strings.Join(command, " "))}

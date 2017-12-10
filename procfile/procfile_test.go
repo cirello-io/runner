@@ -31,9 +31,6 @@ web: waitfor=localhost:8888 waitbefore=localhost:2122 ./server serve`
 
 	gotSVC := got.Services[1]
 
-	if gotSVC.WaitBefore == "" {
-		t.Error("service WaitBefore is missing")
-	}
 	if gotSVC.WaitFor == "" {
 		t.Error("service WaitFor is missing")
 	}
