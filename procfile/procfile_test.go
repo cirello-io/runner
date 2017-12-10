@@ -26,7 +26,8 @@ func TestParse(t *testing.T) {
 observe: *.go *.js
 ignore: /vendor
 build-server: make server
-web: waitfor=localhost:8888 waitbefore=localhost:2122 ./server serve`
+web: waitfor=localhost:8888 waitbefore=localhost:2122 ./server serve
+malformed-line`
 
 	got, err := Parse(strings.NewReader(example))
 	if err != nil {

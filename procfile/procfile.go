@@ -57,6 +57,9 @@ func Parse(r io.Reader) (runner.Runner, error) {
 			continue
 		}
 		parts := strings.SplitN(line, ":", 2)
+		if len(parts) < 2 {
+			continue
+		}
 		procType, command := strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
 		switch strings.ToLower(procType) {
 		case "workdir":
