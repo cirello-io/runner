@@ -15,8 +15,12 @@
 package procfile
 
 import (
+	"os"
+	"reflect"
 	"strings"
 	"testing"
+
+	"cirello.io/runner/runner"
 )
 
 func TestParse(t *testing.T) {
@@ -26,7 +30,7 @@ func TestParse(t *testing.T) {
 observe: *.go *.js
 ignore: /vendor
 build-server: make server
-web: waitfor=localhost:8888 waitbefore=localhost:2122 ./server serve
+web: waitfor=localhost:8888 ./server serve
 malformed-line`
 
 	got, err := Parse(strings.NewReader(example))
@@ -34,24 +38,29 @@ malformed-line`
 		t.Error("unexpected error", err)
 	}
 
-	if l := len(got.Observables); l != 2 {
-		t.Error("unexpected number of observables", l)
+	expected := runner.Runner{
+		WorkDir:     os.ExpandEnv("$GOPATH/src/github.com/example/go-app"),
+		Observables: []string{"*.go", "*.js"},
+		SkipDirs:    []string{"/vendor"},
+		Services: []*runner.Service{
+			&runner.Service{
+				Name:       "build-server",
+				Cmd:        []string{"make server"},
+				WaitBefore: "",
+				WaitFor:    "",
+			},
+			&runner.Service{
+				Name: "web",
+				Cmd: []string{
+					"./server serve",
+				},
+				WaitBefore: "",
+				WaitFor:    "localhost:8888",
+			},
+		},
 	}
 
-	if l := len(got.SkipDirs); l != 1 {
-		t.Error("unexpected number of ignored dirs", l)
-	}
-
-	if l := len(got.Services); l != 2 {
-		t.Error("unexpected number of services", l)
-	}
-
-	gotSVC := got.Services[1]
-
-	if gotSVC.WaitFor == "" {
-		t.Error("service WaitFor is missing")
-	}
-	if l := len(gotSVC.Cmd); l != 1 {
-		t.Error("unexpected number of commands", l)
+	if !reflect.DeepEqual(got, expected) {
+		t.Errorf("parser did not get the right result. got: %#v\nexpected:%#v", got, expected)
 	}
 }
