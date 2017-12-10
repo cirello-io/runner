@@ -10,23 +10,19 @@ Create a file name Procfile in the root of the project you want to run.
 	build-server: make server
 	web: waitfor=localhost:8888 ./server serve
 
-Points of note: workdir follow the same rules for exec.Command.Dir, observe
-uses filepath.Match on top of filepath.Base of full paths; ignore are relative
-to workdir.
-
-In the service, you can declare "waitfor=hostname:port" to check for the
+On each process type, you can declare "waitfor=hostname:port" to check for the
 readiness of a dependency through network check.
 
-Services whose names are prefixed by "build" will always be executed first and
-in order of declaration.
+Process type names prefixed by "build" are always executed first and in order
+of declaration.
 
 Special service names:
 
-- workdir: the working directory, and environment variables are expanded.
+- workdir: the working directory, and environment variables are expanded. It follow the same rules for exec.Command.Dir.
 
 - observe: a space separated list of file patterns to scan for. It uses filepath.Match internally.
 
-- ignore: a space separated list of directories to ignore, typically vendor directories.
+- ignore: a space separated list of ignorable directories relative to workdir, typically vendor directories.
 */
 package main // import "cirello.io/runner"
 

@@ -11,7 +11,7 @@
 //	build-server: make server
 //	web: waitfor=localhost:8888 waitbefore=localhost:2122 ./server serve
 //
-// Special service names:
+// Special process type names:
 //
 // - workdir: the working directory, and environment variables are expanded.
 //
