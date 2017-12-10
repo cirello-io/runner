@@ -47,6 +47,7 @@ package main // import "cirello.io/runner"
 
 import (
 	"encoding/json"
+	"flag"
 	"log"
 	"os"
 	"os/signal"
@@ -54,12 +55,30 @@ import (
 	"cirello.io/runner/runner"
 )
 
+// DefaultProcfile is the file that runner will open by default if no custom
+// is given.
+const DefaultProcfile = "runner.json"
+
+var (
+	procfile = flag.String("procfile", DefaultProcfile, "procfile that should be read to start the application")
+)
+
+func init() {
+	flag.Parse()
+}
+
 func main() {
 	log.SetFlags(0)
 	log.SetPrefix("runner: ")
-	fd, err := os.Open("runner.json")
+
+	fn := DefaultProcfile
+	if *procfile != "" {
+		fn = *procfile
+	}
+
+	fd, err := os.Open(fn)
 	if err != nil {
-		log.Fatalln("cannot open runner.json")
+		log.Fatalln(err)
 	}
 
 	var s runner.Runner
