@@ -71,37 +71,45 @@ type Runner struct {
 
 	// Services is the list of services necessary to start this application.
 	Services []*Service
+
+	longestServiceName int
 }
 
 // Start initiates the application.
-func (s Runner) Start() error {
-	updates, err := s.monitorWorkDir()
+func (r Runner) Start() error {
+	for _, svc := range r.Services {
+		if l := len(svc.Name); l > r.longestServiceName {
+			r.longestServiceName = l
+		}
+	}
+
+	updates, err := r.monitorWorkDir()
 	if err != nil {
 		return err
 	}
 
 	for {
 		ctx, cancel := context.WithCancel(context.Background())
-		go s.startServices(ctx)
+		go r.startServices(ctx)
 		<-updates
 		cancel()
 	}
 }
 
-func (s Runner) startServices(ctx context.Context) {
+func (r Runner) startServices(ctx context.Context) {
 	var (
 		wgBuild    sync.WaitGroup
 		mu         sync.Mutex
 		anyFailure = false
 	)
-	for _, sv := range s.Services {
+	for _, sv := range r.Services {
 		if !strings.HasPrefix(sv.Name, "build") {
 			continue
 		}
 		wgBuild.Add(1)
 		go func(sv *Service) {
 			defer wgBuild.Done()
-			if !startService(ctx, s.WorkDir, sv) {
+			if !r.startService(ctx, sv) {
 				mu.Lock()
 				anyFailure = true
 				mu.Unlock()
@@ -116,52 +124,52 @@ func (s Runner) startServices(ctx context.Context) {
 	}
 
 	var wgRun sync.WaitGroup
-	for _, sv := range s.Services {
+	for _, sv := range r.Services {
 		if strings.HasPrefix(sv.Name, "build") {
 			continue
 		}
 		wgRun.Add(1)
 		go func(sv *Service) {
 			defer wgRun.Done()
-			startService(ctx, s.WorkDir, sv)
+			r.startService(ctx, sv)
 		}(sv)
 	}
 	wgRun.Wait()
 }
 
-func startService(ctx context.Context, workDir string, sv *Service) bool {
-	r, w := io.Pipe()
-	prefixedPrinter(r, sv.Name)
-	defer w.Close()
-	defer r.Close()
+func (r Runner) startService(ctx context.Context, sv *Service) bool {
+	pr, pw := io.Pipe()
+	r.prefixedPrinter(pr, sv.Name)
+	defer pw.Close()
+	defer pr.Close()
 	for idx, cmd := range sv.Cmd {
-		fmt.Fprintln(w, "running", `"`+cmd+`"`)
+		fmt.Fprintln(pw, "running", `"`+cmd+`"`)
 		c := exec.CommandContext(ctx, "sh", "-c", cmd)
-		c.Dir = workDir
+		c.Dir = r.WorkDir
 		stderrPipe, err := c.StderrPipe()
 		if err != nil {
-			fmt.Fprintln(w, "cannot open stderr pipe", sv.Name, cmd)
+			fmt.Fprintln(pw, "cannot open stderr pipe", sv.Name, cmd)
 			continue
 		}
 		stdoutPipe, err := c.StdoutPipe()
 		if err != nil {
-			fmt.Fprintln(w, "cannot open stdout pipe", sv.Name, cmd)
+			fmt.Fprintln(pw, "cannot open stdout pipe", sv.Name, cmd)
 			continue
 		}
 
-		prefixedPrinter(stderrPipe, sv.Name)
-		prefixedPrinter(stdoutPipe, sv.Name)
+		r.prefixedPrinter(stderrPipe, sv.Name)
+		r.prefixedPrinter(stdoutPipe, sv.Name)
 
 		isFirstCommand := idx == 0
 		isLastCommand := idx+1 == len(sv.Cmd)
 		if isFirstCommand && sv.WaitBefore != "" {
-			waitFor(ctx, w, sv.WaitBefore)
+			waitFor(ctx, pw, sv.WaitBefore)
 		} else if isLastCommand && sv.WaitFor != "" {
-			waitFor(ctx, w, sv.WaitFor)
+			waitFor(ctx, pw, sv.WaitFor)
 		}
 
 		if err := c.Run(); err != nil {
-			fmt.Fprintf(w, "exec error %s: (%s) %v\n", sv.Name, cmd, err)
+			fmt.Fprintf(pw, "exec error %s: (%s) %v\n", sv.Name, cmd, err)
 			return false
 		}
 	}
@@ -186,14 +194,15 @@ func waitFor(ctx context.Context, w io.Writer, target string) {
 	fmt.Fprintln(w, "starting")
 }
 
-func prefixedPrinter(r io.Reader, name string) *bufio.Scanner {
-	scanner := bufio.NewScanner(r)
+func (r Runner) prefixedPrinter(rdr io.Reader, name string) *bufio.Scanner {
+	paddedName := (name + strings.Repeat(" ", r.longestServiceName))[:r.longestServiceName]
+	scanner := bufio.NewScanner(rdr)
 	go func() {
 		for scanner.Scan() {
-			fmt.Println(name+":", scanner.Text())
+			fmt.Println(paddedName+":", scanner.Text())
 		}
 		if err := scanner.Err(); err != nil && err != os.ErrClosed && err != io.ErrClosedPipe {
-			fmt.Println(name+":", "error:", err)
+			fmt.Println(paddedName+":", "error:", err)
 		}
 	}()
 	return scanner
