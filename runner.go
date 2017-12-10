@@ -224,20 +224,19 @@ func (r Runner) startProcess(ctx context.Context, sv *ProcessType) bool {
 
 func waitFor(ctx context.Context, w io.Writer, target string) {
 	fmt.Fprintln(w, "waiting for", target)
+	defer fmt.Fprintln(w, "starting")
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		default:
+		case <-time.After(250 * time.Millisecond):
+			c, err := net.Dial("tcp", target)
+			if err == nil {
+				c.Close()
+				return
+			}
 		}
-		_, err := net.Dial("tcp", target)
-		if err != nil {
-			time.Sleep(250 * time.Millisecond)
-			continue
-		}
-		break
 	}
-	fmt.Fprintln(w, "starting")
 }
 
 func (r Runner) prefixedPrinter(rdr io.Reader, name string) *bufio.Scanner {
