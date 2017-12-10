@@ -24,7 +24,7 @@ func match(p, path string) bool {
 			continue
 		}
 		subp = filepath.Clean(subp)
-		t := strings.Replace(tmp, subp, "", -1)
+		t := strings.Replace(tmp, subp, "", 1)
 		if t == tmp {
 			return false
 		}
