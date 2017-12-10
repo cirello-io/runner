@@ -63,20 +63,20 @@ const (
 // initialized.
 type ProcessType struct {
 	// Name of the process type
-	Name string
+	Name string `json:"name"`
 
 	// Cmd are the commands necessary to start the process type. Each
 	// command is executed on its own separated shell. No state is shared
 	// across commands.
-	Cmd []string
+	Cmd []string `json:"cmd"`
 
 	// WaitBefore is the network address that the process type waits to be
 	// available before initiating the process type start.
-	WaitBefore string
+	WaitBefore string `json:"waitbefore,omitempty"`
 
 	// WaitFor is the network address that the process type waits to be
 	// available before finalizing the start.
-	WaitFor string
+	WaitFor string `json:"waitfor,omitempty"`
 
 	// Restart is the flag that forces the process type to restart. It means
 	// that all steps are executed upon restart. This option does not apply
@@ -85,26 +85,26 @@ type ProcessType struct {
 	// - yes|always: alway restart the process type.
 	// - no|<empty>: never restart the process type.
 	// - on-failure|fail: restart the process type if any of the steps fail.
-	Restart RestartMode
+	Restart RestartMode `json:"restart,omitempty"`
 }
 
 // Runner defines how this application should be started.
 type Runner struct {
 	// WorkDir is the working directory from which all commands are going
 	// to be executed.
-	WorkDir string
+	WorkDir string `json:"workdir,omitempty"`
 
 	// Observables are the filepath.Match() patterns used to scan for files
 	// with changes.
-	Observables []string
+	Observables []string `json:"observables,omitempty"`
 
 	// SkipDirs are the directory names that are ignored during changed file
 	// scanning.
-	SkipDirs []string
+	SkipDirs []string `json:"skipdir,omitempty"`
 
 	// Processes is the list of processes necessary to start this
 	// application.
-	Processes []*ProcessType
+	Processes []*ProcessType `json:"procs"`
 
 	longestProcessTypeName int
 }

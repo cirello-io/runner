@@ -64,7 +64,8 @@ import (
 const DefaultProcfile = "Procfile"
 
 var (
-	procfileFn = flag.String("procfile", DefaultProcfile, "procfile that should be read to start the application")
+	procfileFn    = flag.String("procfile", DefaultProcfile, "procfile that should be read to start the application")
+	convertToJSON = flag.Bool("convert", false, "takes a declared Procfile and prints as JSON to standard output")
 )
 
 func init() {
@@ -96,6 +97,15 @@ func main() {
 		if err != nil {
 			log.Fatalln("cannot parse spec file (procfile):", err)
 		}
+	}
+
+	if *convertToJSON {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "    ")
+		if err := enc.Encode(&s); err != nil {
+			log.Fatalln("cannot encode procfile into JSON:", err)
+		}
+		return
 	}
 
 	s.WorkDir = os.ExpandEnv(s.WorkDir)
