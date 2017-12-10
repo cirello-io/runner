@@ -64,7 +64,6 @@ import (
 const DefaultProcfile = "Procfile"
 
 var (
-	procfileFn    = flag.String("procfile", DefaultProcfile, "procfile that should be read to start the application")
 	convertToJSON = flag.Bool("convert", false, "takes a declared Procfile and prints as JSON to standard output")
 )
 
@@ -77,8 +76,8 @@ func main() {
 	log.SetPrefix("runner: ")
 
 	fn := DefaultProcfile
-	if *procfileFn != "" {
-		fn = *procfileFn
+	if argFn := flag.Arg(0); argFn != "" {
+		fn = argFn
 	}
 
 	fd, err := os.Open(fn)
