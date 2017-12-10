@@ -29,6 +29,28 @@ import (
 	"time"
 )
 
+// RestartMode defines how a service should restart itself.
+type RestartMode string
+
+// ParseRestartMode takes a string and converts to RestartMode
+func ParseRestartMode(m string) RestartMode {
+	switch strings.ToLower(m) {
+	case "yes", "always", "true", "1":
+		return Always
+	case "fail", "failure", "onfailure", "on-failure", "on_failure":
+		return OnFailure
+	default:
+		return Never
+	}
+}
+
+// Restart modes
+const (
+	Always    RestartMode = "yes"
+	OnFailure RestartMode = "fail"
+	Never     RestartMode = ""
+)
+
 // Service is the piece of software you want to start. Cmd accepts multiple
 // commands. All commands are executed in order of declaration. The last command
 // is considered the call which activates the service. If WaitBefore is defined,
@@ -53,6 +75,15 @@ type Service struct {
 	// WaitFor is the network address that the service waits to be available
 	// before finalizing the start.
 	WaitFor string
+
+	// Restart is the flag that forces the service to restart. It means that
+	// all steps are executed upon restart. This option does not apply to
+	// build steps.
+	//
+	// - yes|always: alway restart the service.
+	// - no|<empty>: never restart the service.
+	// - on-failure|fail: restart the service if any of the steps fail.
+	Restart RestartMode
 }
 
 // Runner defines how this application should be started.
@@ -131,7 +162,19 @@ func (r Runner) startServices(ctx context.Context) {
 		wgRun.Add(1)
 		go func(sv *Service) {
 			defer wgRun.Done()
-			r.startService(ctx, sv)
+			for {
+				ok := r.startService(ctx, sv)
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+				stop := !(sv.Restart == Always ||
+					!ok && sv.Restart == OnFailure)
+				if stop {
+					break
+				}
+			}
 		}(sv)
 	}
 	wgRun.Wait()

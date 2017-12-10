@@ -79,6 +79,11 @@ func Parse(r io.Reader) (runner.Runner, error) {
 					svc.WaitFor = strings.TrimPrefix(part, "waitfor=")
 					continue
 				}
+				if strings.HasPrefix(part, "restart=") {
+					restartMode := strings.TrimPrefix(part, "restart=")
+					svc.Restart = runner.ParseRestartMode(restartMode)
+					continue
+				}
 				command = append(command, part)
 			}
 			svc.Cmd = []string{strings.TrimSpace(strings.Join(command, " "))}
