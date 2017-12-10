@@ -40,7 +40,13 @@ filepath.Match internally.
 typically vendor directories.
 
 - build*: process type name prefixed by "build" are always executed first and in
-  order of declaration. On failure, they halt the initialization.
+order of declaration. On failure, they halt the initialization.
+
+- waitfor (in service): target hostname and port that the runner will probe
+before starting the service.
+
+- restart (in service): "always" will restart the service every time; "fail"
+will restart the service on failure.
 */
 package main // import "cirello.io/runner"
 
