@@ -28,7 +28,7 @@
 // Special process type names:
 //
 // - workdir: the working directory. Environment variables are expanded. It
-//   follow the same rules for exec.Command.Dir.
+//   follows the same rules for exec.Command.Dir.
 //
 // - observe: a space separated list of file patterns to scan for. It uses
 //   filepath.Match internally.

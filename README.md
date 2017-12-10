@@ -20,8 +20,8 @@ readiness of a dependency through a network check.
 
 Special service names:
 
-- workdir: the working directory. Environment variables are expanded. It follow
-he same rules for exec.Command.Dir.
+- workdir: the working directory. Environment variables are expanded. It follows
+the same rules for exec.Command.Dir.
 
 - observe: a space separated list of file patterns to scan for. It uses
 filepath.Match internally.
