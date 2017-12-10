@@ -59,7 +59,7 @@ import (
 
 // DefaultProcfile is the file that runner will open by default if no custom
 // is given.
-const DefaultProcfile = "runner.json"
+const DefaultProcfile = "Procfile"
 
 var (
 	procfileFn = flag.String("procfile", DefaultProcfile, "procfile that should be read to start the application")
