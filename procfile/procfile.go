@@ -23,7 +23,7 @@
 //	observe: *.go *.js
 //	ignore: /vendor
 //	build-server: make server
-//	web: waitfor=localhost:8888 waitbefore=localhost:2122 ./server serve
+//	web: waitfor=localhost:8888 ./server serve
 //
 // Special process type names:
 //

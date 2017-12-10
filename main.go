@@ -25,7 +25,7 @@ Create a file name Procfile in the root of the project you want to run.
 	web: waitfor=localhost:8888 ./server serve
 
 On each process type, you can declare "waitfor=hostname:port" to check for the
-readiness of a dependency through network check.
+readiness of a dependency through a network check.
 
 Special service names:
 
