@@ -22,6 +22,7 @@ import (
 func TestParse(t *testing.T) {
 	const example = `workdir: $GOPATH/src/github.com/example/go-app
 
+#this is a comment
 observe: *.go *.js
 ignore: /vendor
 build-server: make server

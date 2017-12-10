@@ -53,7 +53,7 @@ func Parse(r io.Reader) (runner.Runner, error) {
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		if line == "" {
+		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "//") {
 			continue
 		}
 		parts := strings.SplitN(line, ":", 2)
