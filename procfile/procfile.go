@@ -23,7 +23,7 @@
 //	observe: *.go *.js
 //	ignore: /vendor
 //	build-server: make server
-//	web: waitfor=localhost:8888 ./server serve
+//	web: restart=fail waitfor=localhost:8888 ./server serve
 //
 // Special process type names:
 //
@@ -35,6 +35,13 @@
 //
 // - ignore: a space separated list of ignored directories relative to workdir,
 //   typically vendor directories.
+//
+// - waitfor (in service): target hostname and port that the runner will probe
+//   before starting the service.
+//
+// - restart (in service): "always" will restart the service every time; "fail"
+//   will restart the service on failure.
+//
 package procfile // import "cirello.io/runner/procfile"
 
 import (
