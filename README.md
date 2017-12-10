@@ -2,7 +2,7 @@
 
 [![GoDoc](https://godoc.org/cirello.io/runner/runner?status.svg)](https://godoc.org/cirello.io/runner/runner)
 [![Go Report Card](https://goreportcard.com/badge/cirello.io/runner)](https://goreportcard.com/report/cirello.io/runner)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://choosealicense.com/licenses/apache-2.0/)
 
 runner is a very ugly and simple structured command executer that
 monitor file changes to trigger service restarts.
