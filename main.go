@@ -51,7 +51,9 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 
+	"cirello.io/runner/procfile"
 	"cirello.io/runner/runner"
 )
 
@@ -60,7 +62,7 @@ import (
 const DefaultProcfile = "runner.json"
 
 var (
-	procfile = flag.String("procfile", DefaultProcfile, "procfile that should be read to start the application")
+	procfileFn = flag.String("procfile", DefaultProcfile, "procfile that should be read to start the application")
 )
 
 func init() {
@@ -72,8 +74,8 @@ func main() {
 	log.SetPrefix("runner: ")
 
 	fn := DefaultProcfile
-	if *procfile != "" {
-		fn = *procfile
+	if *procfileFn != "" {
+		fn = *procfileFn
 	}
 
 	fd, err := os.Open(fn)
@@ -82,8 +84,16 @@ func main() {
 	}
 
 	var s runner.Runner
-	if err := json.NewDecoder(fd).Decode(&s); err != nil {
-		log.Fatalln("cannot parse spec file:", err)
+	switch filepath.Ext(fn) {
+	case ".json":
+		if err := json.NewDecoder(fd).Decode(&s); err != nil {
+			log.Fatalln("cannot parse spec file (json):", err)
+		}
+	default:
+		s, err = procfile.Parse(fd)
+		if err != nil {
+			log.Fatalln("cannot parse spec file (procfile):", err)
+		}
 	}
 
 	s.WorkDir = os.ExpandEnv(s.WorkDir)
