@@ -33,6 +33,8 @@ typically vendor directories.
   order of declaration. On failure, they halt the initialization.
 
 ## Installation
-go get [-u] [-tags fswatch] cirello.io/runner
+go get [-u] [-tags poll] cirello.io/runner
+
+Use `-tags poll` if the fsnotifier fails.
 
 http://godoc.org/cirello.io/runner
