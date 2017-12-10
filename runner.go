@@ -47,7 +47,7 @@ type Service struct {
 	Cmd []string
 
 	// WaitBefore is the network address that the service waits to be
-	// available initiating the service start.
+	// available before initiating the service start.
 	WaitBefore string
 
 	// WaitFor is the network address that the service waits to be available
