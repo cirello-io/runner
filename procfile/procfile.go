@@ -42,6 +42,9 @@
 // - restart (in process type): "always" will restart the process type every
 // time; "fail" will restart the process type on failure.
 //
+// Although internally runner.Runner supports waitbefore and multi-command
+// processes, for simplicity of interface these features have been disabled in
+// Procfile parser.
 package procfile // import "cirello.io/runner/procfile"
 
 import (
