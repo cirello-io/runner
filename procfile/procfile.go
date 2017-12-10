@@ -13,11 +13,11 @@
 //
 // Special process type names:
 //
-// - workdir: the working directory, and environment variables are expanded.
+// - workdir: the working directory. Environment variables are expanded. It follow the same rules for exec.Command.Dir.
 //
 // - observe: a space separated list of file patterns to scan for. It uses filepath.Match internally.
 //
-// - ignore: a space separated list of directories to ignore, typically vendor directories.
+// - ignore: a space separated list of ignored directories relative to workdir, typically vendor directories.
 package procfile // import "cirello.io/runner/procfile"
 
 import (

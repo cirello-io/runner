@@ -18,11 +18,11 @@ of declaration.
 
 Special service names:
 
-- workdir: the working directory, and environment variables are expanded. It follow the same rules for exec.Command.Dir.
+- workdir: the working directory. Environment variables are expanded. It follow the same rules for exec.Command.Dir.
 
 - observe: a space separated list of file patterns to scan for. It uses filepath.Match internally.
 
-- ignore: a space separated list of ignorable directories relative to workdir, typically vendor directories.
+- ignore: a space separated list of ignored directories relative to workdir, typically vendor directories.
 */
 package main // import "cirello.io/runner"
 
