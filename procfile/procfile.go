@@ -32,6 +32,8 @@ func Parse(r io.Reader) (runner.Runner, error) {
 		parts := strings.SplitN(line, ":", 2)
 		procType, command := strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
 		switch strings.ToLower(procType) {
+		case "":
+			continue
 		case "workdir":
 			rnr.WorkDir = os.ExpandEnv(command)
 		case "observe":
@@ -53,7 +55,7 @@ func Parse(r io.Reader) (runner.Runner, error) {
 				}
 				command = append(command, part)
 			}
-			svc.Cmd = []string{strings.Join(command, " ")}
+			svc.Cmd = []string{strings.TrimSpace(strings.Join(command, " "))}
 			rnr.Services = append(rnr.Services, &svc)
 		}
 	}
