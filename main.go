@@ -16,7 +16,8 @@
 Command runner is a very ugly and simple structured command executer that
 monitor file changes to trigger service restarts.
 
-Create a file name Procfile in the root of the project you want to run.
+Create a file name Procfile in the root of the project you want to run, and add
+the following content:
 
 	workdir: $GOPATH/src/github.com/example/go-app
 	observe: *.go *.js
