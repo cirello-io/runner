@@ -11,7 +11,7 @@
 //	build-server: make server
 //	web: waitfor=localhost:8888 waitbefore=localhost:2122 ./server serve
 //
-package procfile
+package procfile // import "cirello.io/runner/procfile"
 
 import (
 	"bufio"

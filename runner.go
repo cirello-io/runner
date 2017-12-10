@@ -1,5 +1,5 @@
 // Package runner holds the building blocks for cmd runner.
-package runner
+package runner // import "cirello.io/runner/runner"
 
 import (
 	"bufio"
