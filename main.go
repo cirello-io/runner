@@ -2,46 +2,20 @@
 Command runner is a very ugly and simple structured command executer that
 monitor file changes to trigger service restarts.
 
-Create a file name runner.json in the root of the project you want to run.
+Create a file name Procfile in the root of the project you want to run.
 
-runner.json:
+	workdir: $GOPATH/src/github.com/example/go-app
+	observe: *.go *.js
+	ignore: /vendor
+	build-server: make server
+	web: waitfor=localhost:8888 waitbefore=localhost:2122 ./server serve
 
-	{
-		"workdir":"some-dir",
-		"observables":[ "*.go" ],
-		"skipdirs":[ "/vendor" ],
-		"services":[
-			{
-				"name": "build",
-				"cmd": [
-					"make all"
-				]
-			},
-			{
-				"name": "name",
-				"cmd": [
-					"go build",
-					"./serve"
-				]
-			},
-			{
-				"name": "client",
-				"waitFor":"localhost:8888",
-				"cmd": [
-					"make cli",
-					"./client"
-				]
-			}
-		]
-	}
+Points of note: workdir follow the same rules for exec.Command.Dir, observe
+uses filepath.Match on top of filepath.Base of full paths; ignore are relative
+to workdir.
 
-
-Points of note: workdir follow the same rules for exec.Command.Dir, observables
-uses filepath.Match on top of filepath.Base of full paths; skipDirs are relative
-to workdir; each command in cmd are executed in isolated shells, they share no
-state with each other.
-
-Services name "build" will always be executed first and in order of declaration.
+Services whose names are prefixed by "build" will always be executed first and
+in order of declaration.
 */
 package main // import "cirello.io/runner"
 
