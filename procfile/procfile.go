@@ -52,13 +52,12 @@ func Parse(r io.Reader) (runner.Runner, error) {
 
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
-		line := scanner.Text()
-		parts := strings.SplitN(line, ":", 2)
-		procType := strings.TrimSpace(parts[0])
-		if procType == "" {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
 			continue
 		}
-		command := strings.TrimSpace(parts[1])
+		parts := strings.SplitN(line, ":", 2)
+		procType, command := strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
 		switch strings.ToLower(procType) {
 		case "workdir":
 			rnr.WorkDir = os.ExpandEnv(command)
