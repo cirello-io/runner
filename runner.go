@@ -32,7 +32,8 @@ import (
 // RestartMode defines if a process should restart itself.
 type RestartMode string
 
-// ParseRestartMode takes a string and converts to RestartMode
+// ParseRestartMode takes a string and converts to RestartMode. If the parsing
+// fails, it silently defaults to Never.
 func ParseRestartMode(m string) RestartMode {
 	switch strings.ToLower(m) {
 	case "yes", "always", "true", "1":
