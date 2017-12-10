@@ -28,19 +28,19 @@
 // Special process type names:
 //
 // - workdir: the working directory. Environment variables are expanded. It
-//   follows the same rules for exec.Command.Dir.
+// follows the same rules for exec.Command.Dir.
 //
 // - observe: a space separated list of file patterns to scan for. It uses
-//   filepath.Match internally.
+// filepath.Match internally.
 //
 // - ignore: a space separated list of ignored directories relative to workdir,
-//   typically vendor directories.
+// typically vendor directories.
 //
 // - waitfor (in service): target hostname and port that the runner will probe
-//   before starting the service.
+// before starting the service.
 //
 // - restart (in service): "always" will restart the service every time; "fail"
-//   will restart the service on failure.
+// will restart the service on failure.
 //
 package procfile // import "cirello.io/runner/procfile"
 
