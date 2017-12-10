@@ -11,6 +11,13 @@
 //	build-server: make server
 //	web: waitfor=localhost:8888 waitbefore=localhost:2122 ./server serve
 //
+// Special service names:
+//
+// - workdir: the working directory, and environment variables are expanded.
+//
+// - observe: a space separated list of file patterns to scan for. It uses filepath.Match internally.
+//
+// - ignore: a space separated list of directories to ignore, typically vendor directories.
 package procfile // import "cirello.io/runner/procfile"
 
 import (
