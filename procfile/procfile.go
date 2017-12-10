@@ -66,7 +66,7 @@ func Parse(r io.Reader) (runner.Runner, error) {
 		switch strings.ToLower(procType) {
 		case "workdir":
 			rnr.WorkDir = os.ExpandEnv(command)
-		case "observe":
+		case "observe", "watch":
 			rnr.Observables = strings.Split(command, " ")
 		case "ignore":
 			rnr.SkipDirs = strings.Split(command, " ")
