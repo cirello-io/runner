@@ -17,6 +17,7 @@
 package runner
 
 import (
+	"context"
 	"log"
 	"os"
 	"path/filepath"
@@ -25,7 +26,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
-func (s Runner) monitorWorkDir() (<-chan struct{}, error) {
+func (s Runner) monitorWorkDir(ctx context.Context) (<-chan struct{}, error) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
@@ -63,8 +64,11 @@ func (s Runner) monitorWorkDir() (<-chan struct{}, error) {
 	log.Println("monitoring", len(memo), "directories")
 
 	go func() {
+		defer watcher.Close()
 		for {
 			select {
+			case <-ctx.Done():
+				return
 			case event := <-watcher.Events:
 				if event.Op&fsnotify.Write != fsnotify.Write {
 					continue

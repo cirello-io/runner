@@ -110,23 +110,29 @@ type Runner struct {
 }
 
 // Start initiates the application.
-func (r Runner) Start() error {
+func (r Runner) Start(ctx context.Context) error {
 	for _, proc := range r.Processes {
 		if l := len(proc.Name); l > r.longestProcessTypeName {
 			r.longestProcessTypeName = l
 		}
 	}
 
-	updates, err := r.monitorWorkDir()
+	updates, err := r.monitorWorkDir(ctx)
 	if err != nil {
 		return err
 	}
 
 	for {
-		ctx, cancel := context.WithCancel(context.Background())
-		go r.startProcesses(ctx)
-		<-updates
-		cancel()
+
+		c, cancel := context.WithCancel(ctx)
+		go r.startProcesses(c)
+		select {
+		case <-ctx.Done():
+			cancel()
+			return nil
+		case <-updates:
+			cancel()
+		}
 	}
 }
 

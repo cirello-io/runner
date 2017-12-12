@@ -48,6 +48,7 @@ before starting the process type.
 package main // import "cirello.io/runner"
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -124,13 +125,15 @@ func main() {
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	go func() {
 		<-c
 		log.Println("shutting down")
-		os.Exit(0)
+		cancel()
 	}()
 
-	if err := s.Start(); err != nil {
+	if err := s.Start(ctx); err != nil {
 		log.Fatalln("cannot serve:", err)
 	}
 }

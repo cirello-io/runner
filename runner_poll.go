@@ -17,6 +17,7 @@
 package runner
 
 import (
+	"context"
 	"crypto/sha1"
 	"fmt"
 	"log"
@@ -26,7 +27,7 @@ import (
 	"time"
 )
 
-func (s Runner) monitorWorkDir() (<-chan struct{}, error) {
+func (s Runner) monitorWorkDir(ctx context.Context) (<-chan struct{}, error) {
 	lastHash, err := s.calculateObservablesHash()
 	if err != nil {
 		return nil, fmt.Errorf("can't calculate work dir hash: %v", err)
@@ -35,7 +36,11 @@ func (s Runner) monitorWorkDir() (<-chan struct{}, error) {
 
 	go func() {
 		tries := 0
-		for range time.Tick(100 * time.Millisecond) {
+		for  {
+			select{
+			case <-ctx.Done():
+				return
+			case <-time.After(100 * time.Millisecond) :
 			currentHash, err := s.calculateObservablesHash()
 			if err != nil {
 				log.Println("can't calculate work dir hash on tick:", err)
