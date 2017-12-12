@@ -191,7 +191,7 @@ func (r Runner) startProcesses(ctx context.Context) {
 
 func (r Runner) startProcess(ctx context.Context, sv *ProcessType) bool {
 	pr, pw := io.Pipe()
-	r.prefixedPrinter(pr, sv.Name)
+	r.prefixedPrinter(ctx, pr, sv.Name)
 	defer pw.Close()
 	defer pr.Close()
 	for idx, cmd := range sv.Cmd {
@@ -209,8 +209,8 @@ func (r Runner) startProcess(ctx context.Context, sv *ProcessType) bool {
 			continue
 		}
 
-		r.prefixedPrinter(stderrPipe, sv.Name)
-		r.prefixedPrinter(stdoutPipe, sv.Name)
+		r.prefixedPrinter(ctx, stderrPipe, sv.Name)
+		r.prefixedPrinter(ctx, stdoutPipe, sv.Name)
 
 		isFirstCommand := idx == 0
 		isLastCommand := idx+1 == len(sv.Cmd)
@@ -245,15 +245,23 @@ func waitFor(ctx context.Context, w io.Writer, target string) {
 	}
 }
 
-func (r Runner) prefixedPrinter(rdr io.Reader, name string) *bufio.Scanner {
+func (r Runner) prefixedPrinter(ctx context.Context, rdr io.Reader, name string) *bufio.Scanner {
 	paddedName := (name + strings.Repeat(" ", r.longestProcessTypeName))[:r.longestProcessTypeName]
 	scanner := bufio.NewScanner(rdr)
 	go func() {
 		for scanner.Scan() {
 			fmt.Println(paddedName+":", scanner.Text())
 		}
-		if err := scanner.Err(); err != nil && err != os.ErrClosed && err != io.ErrClosedPipe {
-			fmt.Println(paddedName+":", "error:", err)
+
+		select {
+		// If the context is cancelled, we really don't care about
+		// errors anymore.
+		case <-ctx.Done():
+			return
+		default:
+			if err := scanner.Err(); err != nil && err != os.ErrClosed && err != io.ErrClosedPipe {
+				fmt.Println(paddedName+":", "error:", err)
+			}
 		}
 	}()
 	return scanner
