@@ -52,7 +52,7 @@ func (s Runner) monitorWorkDir(ctx context.Context) (<-chan struct{}, error) {
 				dir := filepath.Dir(path)
 				if _, ok := memo[dir]; !ok {
 					memo[dir] = struct{}{}
-					watcher.Add(dir)
+					_ = watcher.Add(dir)
 				}
 			}
 		}
@@ -63,9 +63,15 @@ func (s Runner) monitorWorkDir(ctx context.Context) (<-chan struct{}, error) {
 	}
 	log.Println("monitoring", len(memo), "directories")
 
+	changeds := s.consumeFsnotifyEvents(ctx, watcher)
+	triggereds := s.triggerRestarts(ctx, changeds)
+	return triggereds, nil
+}
+
+func (s Runner) consumeFsnotifyEvents(ctx context.Context, watcher *fsnotify.Watcher) chan struct{} {
 	changeds := make(chan struct{})
+	defer watcher.Close()
 	go func() {
-		defer watcher.Close()
 		for {
 			select {
 			case <-ctx.Done():
@@ -88,7 +94,10 @@ func (s Runner) monitorWorkDir(ctx context.Context) (<-chan struct{}, error) {
 			}
 		}
 	}()
+	return changeds
+}
 
+func (s Runner) triggerRestarts(ctx context.Context, changeds chan struct{}) chan struct{} {
 	triggereds := make(chan struct{})
 	go func() {
 		lastRun := time.Now()
@@ -107,5 +116,5 @@ func (s Runner) monitorWorkDir(ctx context.Context) (<-chan struct{}, error) {
 			lastRun = time.Now()
 		}
 	}()
-	return triggereds, nil
+	return triggereds
 }
