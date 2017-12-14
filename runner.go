@@ -137,7 +137,7 @@ func (r Runner) Start(ctx context.Context) error {
 }
 
 func (r Runner) startProcesses(ctx context.Context) {
-	if !r.runBuilds(ctx) {
+	if ok := r.runBuilds(ctx); !ok {
 		log.Println("error during build, halted")
 		return
 	}
@@ -170,9 +170,9 @@ func (r Runner) startProcesses(ctx context.Context) {
 
 func (r Runner) runBuilds(ctx context.Context) bool {
 	var (
-		wgBuild    sync.WaitGroup
-		mu         sync.Mutex
-		anyFailure = false
+		wgBuild sync.WaitGroup
+		mu      sync.Mutex
+		ok      = true
 	)
 	for _, sv := range r.Processes {
 		if !strings.HasPrefix(sv.Name, "build") {
@@ -183,13 +183,13 @@ func (r Runner) runBuilds(ctx context.Context) bool {
 			defer wgBuild.Done()
 			if !r.startProcess(ctx, sv) {
 				mu.Lock()
-				anyFailure = true
+				ok = false
 				mu.Unlock()
 			}
 		}(sv)
 	}
 	wgBuild.Wait()
-	return anyFailure
+	return ok
 }
 
 func (r Runner) startProcess(ctx context.Context, sv *ProcessType) bool {
