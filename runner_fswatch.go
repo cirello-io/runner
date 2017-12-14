@@ -22,6 +22,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/fsnotify/fsnotify"
 )
@@ -32,7 +33,6 @@ func (s Runner) monitorWorkDir(ctx context.Context) (<-chan struct{}, error) {
 		return nil, err
 	}
 
-	ch := make(chan struct{})
 	memo := make(map[string]struct{})
 
 	err = filepath.Walk(s.WorkDir, func(path string, info os.FileInfo, err error) error {
@@ -63,6 +63,7 @@ func (s Runner) monitorWorkDir(ctx context.Context) (<-chan struct{}, error) {
 	}
 	log.Println("monitoring", len(memo), "directories")
 
+	changeds := make(chan struct{})
 	go func() {
 		defer watcher.Close()
 		for {
@@ -75,7 +76,10 @@ func (s Runner) monitorWorkDir(ctx context.Context) (<-chan struct{}, error) {
 				}
 				for _, p := range s.Observables {
 					if match(p, event.Name) {
-						ch <- struct{}{}
+						select {
+						case changeds <- struct{}{}:
+						default:
+						}
 						break
 					}
 				}
@@ -85,5 +89,23 @@ func (s Runner) monitorWorkDir(ctx context.Context) (<-chan struct{}, error) {
 		}
 	}()
 
-	return ch, nil
+	triggereds := make(chan struct{})
+	go func() {
+		lastRun := time.Now()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-changeds:
+				triggereds <- struct{}{}
+			}
+			const coolDownPeriod = 7500 * time.Millisecond
+			if sinceLastRun := time.Since(lastRun); sinceLastRun < coolDownPeriod {
+				log.Println("too active, pausing restarts")
+				time.Sleep(coolDownPeriod - sinceLastRun)
+			}
+			lastRun = time.Now()
+		}
+	}()
+	return triggereds, nil
 }
