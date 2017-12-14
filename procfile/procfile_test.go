@@ -44,13 +44,13 @@ malformed-line`
 		Observables: []string{"*.go", "*.js"},
 		SkipDirs:    []string{"/vendor"},
 		Processes: []*runner.ProcessType{
-			&runner.ProcessType{
+			{
 				Name:       "build-server",
 				Cmd:        []string{"make server"},
 				WaitBefore: "",
 				WaitFor:    "",
 			},
-			&runner.ProcessType{
+			{
 				Name: "web",
 				Cmd: []string{
 					"./server serve",
@@ -59,7 +59,7 @@ malformed-line`
 				WaitFor:    "localhost:8888",
 				Restart:    runner.Always,
 			},
-			&runner.ProcessType{
+			{
 				Name: "web2",
 				Cmd: []string{
 					"./server serve",
