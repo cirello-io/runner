@@ -34,7 +34,6 @@ func (s Runner) monitorWorkDir(ctx context.Context) (<-chan struct{}, error) {
 	}
 
 	memo := make(map[string]struct{})
-
 	err = filepath.Walk(s.WorkDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -70,8 +69,9 @@ func (s Runner) monitorWorkDir(ctx context.Context) (<-chan struct{}, error) {
 
 func (s Runner) consumeFsnotifyEvents(ctx context.Context, watcher *fsnotify.Watcher) chan struct{} {
 	changeds := make(chan struct{})
-	defer watcher.Close()
+
 	go func() {
+		defer watcher.Close()
 		for {
 			select {
 			case <-ctx.Done():
