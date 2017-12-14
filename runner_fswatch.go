@@ -76,6 +76,7 @@ func (s Runner) monitorWorkDir(ctx context.Context) (<-chan struct{}, error) {
 				for _, p := range s.Observables {
 					if match(p, event.Name) {
 						ch <- struct{}{}
+						break
 					}
 				}
 			case err := <-watcher.Errors:
