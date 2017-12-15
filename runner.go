@@ -251,6 +251,7 @@ func waitFor(ctx context.Context, w io.Writer, target string) {
 func (r Runner) prefixedPrinter(ctx context.Context, rdr io.Reader, name string) *bufio.Scanner {
 	paddedName := (name + strings.Repeat(" ", r.longestProcessTypeName))[:r.longestProcessTypeName]
 	scanner := bufio.NewScanner(rdr)
+	scanner.Buffer(make([]byte, 65536), 2*1048576)
 	go func() {
 		for scanner.Scan() {
 			fmt.Println(paddedName+":", scanner.Text())
