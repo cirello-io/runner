@@ -108,7 +108,8 @@ func (s Runner) triggerRestarts(ctx context.Context, changeds chan struct{}) cha
 			case <-changeds:
 				triggereds <- struct{}{}
 			}
-			const coolDownPeriod = 30 * time.Second
+
+			const coolDownPeriod = 10 * time.Second
 			if sinceLastRun := time.Since(lastRun); sinceLastRun < coolDownPeriod {
 				log.Println("too active, pausing restarts for", coolDownPeriod-sinceLastRun)
 				time.Sleep(coolDownPeriod - sinceLastRun)
