@@ -68,6 +68,7 @@ const DefaultProcfile = "Procfile"
 var (
 	convertToJSON = flag.Bool("convert", false, "takes a declared Procfile and prints as JSON to standard output")
 	basePort      = flag.Int("port", 5000, "IP port used to set $`PORT` for each process type")
+	formation     = flag.String("formation", "", "formation allows to start more than one instance of a process type, format: `procTypeA=# procTypeB=# ... procTypeN=#`")
 )
 
 func init() {

@@ -111,7 +111,19 @@ type Runner struct {
 	// processes do not earn an IP port.
 	BasePort int
 
+	// Formation allows to start more than one process type each time. Each
+	// start will yield its own exclusive $PORT. Formation does not apply
+	// to build process types.
+	Formation map[string]int // map of process type name and count
+
 	longestProcessTypeName int
+}
+
+// New creates a new runner ready to use.
+func New() Runner {
+	return Runner{
+		Formation: make(map[string]int),
+	}
 }
 
 // Start initiates the application.
@@ -153,24 +165,32 @@ func (r Runner) startProcesses(ctx context.Context) {
 		if strings.HasPrefix(sv.Name, "build") {
 			continue
 		}
-		wgRun.Add(1)
-		go func(sv *ProcessType, portCount int) {
-			defer wgRun.Done()
-			for {
-				ok := r.startProcess(ctx, sv, portCount)
-				select {
-				case <-ctx.Done():
-					return
-				default:
+
+		maxProc := 1
+		if formation, ok := r.Formation[sv.Name]; ok {
+			maxProc = formation
+		}
+
+		for i := 0; i < maxProc; i++ {
+			wgRun.Add(1)
+			go func(sv *ProcessType, portCount int) {
+				defer wgRun.Done()
+				for {
+					ok := r.startProcess(ctx, sv, portCount)
+					select {
+					case <-ctx.Done():
+						return
+					default:
+					}
+					stop := !(sv.Restart == Always ||
+						!ok && sv.Restart == OnFailure)
+					if stop {
+						break
+					}
 				}
-				stop := !(sv.Restart == Always ||
-					!ok && sv.Restart == OnFailure)
-				if stop {
-					break
-				}
-			}
-		}(sv, portCount)
-		portCount++
+			}(sv, portCount)
+			portCount++
+		}
 	}
 	wgRun.Wait()
 }

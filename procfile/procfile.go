@@ -22,6 +22,7 @@
 //	workdir: $GOPATH/src/github.com/example/go-app
 //	observe: *.go *.js
 //	ignore: /vendor
+//	formation: web=2
 //	build-server: make server
 //	web: restart=fail waitfor=localhost:8888 ./server serve
 //
@@ -35,6 +36,11 @@
 //
 // - ignore: a space separated list of ignored directories relative to workdir,
 // typically vendor directories.
+//
+// - formation: allows to start more than one instance for a given process type.
+// if the process type is declared with zero ("proc=0"), it is not started. Non
+// declared process types are started once. Each process type has its own
+// exclusive $PORT variable value.
 //
 // - waitfor (in process type): target hostname and port that the runner will
 // probe before starting the process type.
@@ -51,6 +57,7 @@ import (
 	"bufio"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 
 	"cirello.io/runner/runner"
@@ -58,7 +65,7 @@ import (
 
 // Parse takes a reader that contains an extended Procfile.
 func Parse(r io.Reader) (runner.Runner, error) {
-	rnr := runner.Runner{}
+	rnr := runner.New()
 
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
@@ -80,6 +87,29 @@ func Parse(r io.Reader) (runner.Runner, error) {
 			rnr.Observables = strings.Split(command, " ")
 		case "ignore":
 			rnr.SkipDirs = strings.Split(command, " ")
+		case "formation":
+			procs := strings.Split(command, " ")
+			for _, proc := range procs {
+				parts := strings.Split(proc, "=")
+				switch len(parts) {
+				case 0:
+					continue
+				case 1:
+					procName := strings.TrimSpace(parts[0])
+					if procName == "" {
+						continue
+					}
+					rnr.Formation[procName] = 1
+					continue
+				default:
+					procName := strings.TrimSpace(parts[0])
+					quantity, err := strconv.Atoi(strings.TrimSpace(parts[1]))
+					if err != nil {
+						quantity = 1
+					}
+					rnr.Formation[procName] = quantity
+				}
+			}
 		default:
 			proc := runner.ProcessType{Name: procType}
 			parts := strings.Split(command, " ")
