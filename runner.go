@@ -106,6 +106,11 @@ type Runner struct {
 	// application.
 	Processes []*ProcessType `json:"procs"`
 
+	// BasePort is the IP port number used to calculate an IP port for each
+	// process type and set to its $PORT environment variable. Build
+	// processes do not earn an IP port.
+	BasePort int
+
 	longestProcessTypeName int
 }
 
@@ -143,15 +148,16 @@ func (r Runner) startProcesses(ctx context.Context) {
 	}
 
 	var wgRun sync.WaitGroup
+	var portCount int
 	for _, sv := range r.Processes {
 		if strings.HasPrefix(sv.Name, "build") {
 			continue
 		}
 		wgRun.Add(1)
-		go func(sv *ProcessType) {
+		go func(sv *ProcessType, portCount int) {
 			defer wgRun.Done()
 			for {
-				ok := r.startProcess(ctx, sv)
+				ok := r.startProcess(ctx, sv, portCount)
 				select {
 				case <-ctx.Done():
 					return
@@ -163,7 +169,8 @@ func (r Runner) startProcesses(ctx context.Context) {
 					break
 				}
 			}
-		}(sv)
+		}(sv, portCount)
+		portCount++
 	}
 	wgRun.Wait()
 }
@@ -181,7 +188,7 @@ func (r Runner) runBuilds(ctx context.Context) bool {
 		wgBuild.Add(1)
 		go func(sv *ProcessType) {
 			defer wgBuild.Done()
-			if !r.startProcess(ctx, sv) {
+			if !r.startProcess(ctx, sv, -1) {
 				mu.Lock()
 				ok = false
 				mu.Unlock()
@@ -192,7 +199,7 @@ func (r Runner) runBuilds(ctx context.Context) bool {
 	return ok
 }
 
-func (r Runner) startProcess(ctx context.Context, sv *ProcessType) bool {
+func (r Runner) startProcess(ctx context.Context, sv *ProcessType, portCount int) bool {
 	pr, pw := io.Pipe()
 	r.prefixedPrinter(ctx, pr, sv.Name)
 	defer pw.Close()
@@ -201,6 +208,9 @@ func (r Runner) startProcess(ctx context.Context, sv *ProcessType) bool {
 		fmt.Fprintln(pw, "running", `"`+cmd+`"`)
 		c := exec.CommandContext(ctx, "sh", "-c", cmd)
 		c.Dir = r.WorkDir
+		if portCount > -1 {
+			c.Env = append(os.Environ(), fmt.Sprintf("PORT=%d", r.BasePort+portCount))
+		}
 		stderrPipe, err := c.StderrPipe()
 		if err != nil {
 			fmt.Fprintln(pw, "cannot open stderr pipe", sv.Name, cmd)

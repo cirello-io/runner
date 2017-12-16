@@ -67,6 +67,7 @@ const DefaultProcfile = "Procfile"
 
 var (
 	convertToJSON = flag.Bool("convert", false, "takes a declared Procfile and prints as JSON to standard output")
+	basePort      = flag.Int("port", 5000, "IP port used to set $`PORT` for each process type")
 )
 
 func init() {
@@ -92,7 +93,12 @@ func main() {
 		log.Fatalln(err)
 	}
 
+	if *basePort < 1 || *basePort > 65535 {
+		log.Fatalln("invalid IP port")
+	}
+
 	var s runner.Runner
+
 	switch filepath.Ext(fn) {
 	case ".json":
 		if err := json.NewDecoder(fd).Decode(&s); err != nil {
@@ -133,6 +139,7 @@ func main() {
 		cancel()
 	}()
 
+	s.BasePort = *basePort
 	if err := s.Start(ctx); err != nil {
 		log.Fatalln("cannot serve:", err)
 	}
