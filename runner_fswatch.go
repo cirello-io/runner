@@ -40,6 +40,9 @@ func (s Runner) monitorWorkDir(ctx context.Context) (<-chan struct{}, error) {
 		}
 		if info.IsDir() {
 			for _, skipDir := range s.SkipDirs {
+				if skipDir == "" {
+					continue
+				}
 				if strings.HasPrefix(path, filepath.Join(s.WorkDir, skipDir)) {
 					return filepath.SkipDir
 				}
@@ -53,6 +56,7 @@ func (s Runner) monitorWorkDir(ctx context.Context) (<-chan struct{}, error) {
 					memo[dir] = struct{}{}
 					_ = watcher.Add(dir)
 				}
+				break
 			}
 		}
 		return nil
