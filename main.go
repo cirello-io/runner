@@ -48,6 +48,7 @@ before starting the process type.
 package main // import "cirello.io/runner"
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"flag"
@@ -56,6 +57,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 
 	"cirello.io/runner/procfile"
 	"cirello.io/runner/runner"
@@ -69,6 +71,7 @@ var (
 	convertToJSON = flag.Bool("convert", false, "takes a declared Procfile and prints as JSON to standard output")
 	basePort      = flag.Int("port", 5000, "IP port used to set $`PORT` for each process type")
 	formation     = flag.String("formation", "", "formation allows to start more than one instance of a process type, format: `procTypeA=# procTypeB=# ... procTypeN=#`")
+	envFn         = flag.String("env", ".env", "environment `file` to be loaded for all processes.")
 )
 
 func init() {
@@ -141,6 +144,22 @@ func main() {
 	}()
 
 	s.BasePort = *basePort
+
+	if fd, err := os.Open(*envFn); err == nil {
+		scanner := bufio.NewScanner(fd)
+		for scanner.Scan() {
+			line := strings.Split(strings.TrimSpace(scanner.Text()), "=")
+			if len(line) != 2 {
+				continue
+			}
+
+			s.BaseEnvironment = append(s.BaseEnvironment, scanner.Text())
+		}
+		if err := scanner.Err(); err != nil {
+			log.Fatalf("error reading environment file (%v): %v", *envFn, err)
+		}
+	}
+
 	if err := s.Start(ctx); err != nil {
 		log.Fatalln("cannot serve:", err)
 	}

@@ -116,6 +116,10 @@ type Runner struct {
 	// to build process types.
 	Formation map[string]int // map of process type name and count
 
+	// BaseEnvironment is the set of environment variables loaded into
+	// the service.
+	BaseEnvironment []string
+
 	longestProcessTypeName int
 }
 
@@ -240,10 +244,16 @@ func (r Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, po
 		fmt.Fprintln(pw, "running", `"`+cmd+`"`, "- listening on", port)
 		c := exec.CommandContext(ctx, "sh", "-c", cmd)
 		c.Dir = r.WorkDir
-		c.Env = append(os.Environ(), fmt.Sprintf("PS=%v", procName))
+
+		c.Env = os.Environ()
+		if len(r.BaseEnvironment) > 0 {
+			c.Env = r.BaseEnvironment
+		}
+		c.Env = append(c.Env, fmt.Sprintf("PS=%v", procName))
 		if portCount > -1 {
 			c.Env = append(c.Env, fmt.Sprintf("PORT=%d", port))
 		}
+
 		stderrPipe, err := c.StderrPipe()
 		if err != nil {
 			fmt.Fprintln(pw, "cannot open stderr pipe", procName, cmd)
