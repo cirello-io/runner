@@ -129,10 +129,16 @@ func New() Runner {
 // Start initiates the application.
 func (r Runner) Start(ctx context.Context) error {
 	for _, proc := range r.Processes {
-		if l := len(proc.Name); l > r.longestProcessTypeName {
+		name := proc.Name
+		if formation, ok := r.Formation[proc.Name]; ok {
+			name = fmt.Sprintf("%v.%v", proc.Name, formation)
+		}
+
+		if l := len(name); l > r.longestProcessTypeName {
 			r.longestProcessTypeName = l
 		}
 	}
+	r.longestProcessTypeName++
 
 	updates, err := r.monitorWorkDir(ctx)
 	if err != nil {
@@ -173,10 +179,10 @@ func (r Runner) startProcesses(ctx context.Context) {
 
 		for i := 0; i < maxProc; i++ {
 			wgRun.Add(1)
-			go func(sv *ProcessType, portCount int) {
+			go func(sv *ProcessType, procCount, portCount int) {
 				defer wgRun.Done()
 				for {
-					ok := r.startProcess(ctx, sv, portCount)
+					ok := r.startProcess(ctx, sv, procCount, portCount)
 					select {
 					case <-ctx.Done():
 						return
@@ -188,7 +194,7 @@ func (r Runner) startProcesses(ctx context.Context) {
 						break
 					}
 				}
-			}(sv, portCount)
+			}(sv, i, portCount)
 			portCount++
 		}
 	}
@@ -208,7 +214,7 @@ func (r Runner) runBuilds(ctx context.Context) bool {
 		wgBuild.Add(1)
 		go func(sv *ProcessType) {
 			defer wgBuild.Done()
-			if !r.startProcess(ctx, sv, -1) {
+			if !r.startProcess(ctx, sv, -1, -1) {
 				mu.Lock()
 				ok = false
 				mu.Unlock()
@@ -219,31 +225,38 @@ func (r Runner) runBuilds(ctx context.Context) bool {
 	return ok
 }
 
-func (r Runner) startProcess(ctx context.Context, sv *ProcessType, portCount int) bool {
+func (r Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, portCount int) bool {
 	pr, pw := io.Pipe()
-	r.prefixedPrinter(ctx, pr, sv.Name)
+	procName := sv.Name
+	if procCount > -1 {
+		procName = fmt.Sprintf("%v.%v", procName, procCount)
+	}
+	r.prefixedPrinter(ctx, pr, procName)
+
 	defer pw.Close()
 	defer pr.Close()
+	port := r.BasePort + portCount
 	for idx, cmd := range sv.Cmd {
-		fmt.Fprintln(pw, "running", `"`+cmd+`"`)
+		fmt.Fprintln(pw, "running", `"`+cmd+`"`, "- listening on", port)
 		c := exec.CommandContext(ctx, "sh", "-c", cmd)
 		c.Dir = r.WorkDir
+		c.Env = append(os.Environ(), fmt.Sprintf("PS=%v", procName))
 		if portCount > -1 {
-			c.Env = append(os.Environ(), fmt.Sprintf("PORT=%d", r.BasePort+portCount))
+			c.Env = append(c.Env, fmt.Sprintf("PORT=%d", port))
 		}
 		stderrPipe, err := c.StderrPipe()
 		if err != nil {
-			fmt.Fprintln(pw, "cannot open stderr pipe", sv.Name, cmd)
+			fmt.Fprintln(pw, "cannot open stderr pipe", procName, cmd)
 			continue
 		}
 		stdoutPipe, err := c.StdoutPipe()
 		if err != nil {
-			fmt.Fprintln(pw, "cannot open stdout pipe", sv.Name, cmd)
+			fmt.Fprintln(pw, "cannot open stdout pipe", procName, cmd)
 			continue
 		}
 
-		r.prefixedPrinter(ctx, stderrPipe, sv.Name)
-		r.prefixedPrinter(ctx, stdoutPipe, sv.Name)
+		r.prefixedPrinter(ctx, stderrPipe, procName)
+		r.prefixedPrinter(ctx, stdoutPipe, procName)
 
 		isFirstCommand := idx == 0
 		isLastCommand := idx+1 == len(sv.Cmd)
@@ -254,7 +267,7 @@ func (r Runner) startProcess(ctx context.Context, sv *ProcessType, portCount int
 		}
 
 		if err := c.Run(); err != nil {
-			fmt.Fprintf(pw, "exec error %s: (%s) %v\n", sv.Name, cmd, err)
+			fmt.Fprintf(pw, "exec error %s: (%s) %v\n", procName, cmd, err)
 			return false
 		}
 	}
