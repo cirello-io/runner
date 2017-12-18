@@ -37,7 +37,7 @@ before starting the process type.
 "fail" will restart the process type on failure.
 
 ## Installation
-`go get [-u] [-tags poll] cirello.io/runner`
+`go get [-f -u] [-tags poll] cirello.io/runner`
 
 Use `-tags poll` if the fsnotify fails.
 
