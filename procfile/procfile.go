@@ -48,6 +48,9 @@
 // - restart (in process type): "always" will restart the process type every
 // time; "fail" will restart the process type on failure.
 //
+// - group (in process type): defines a group of processes, anyone that
+// terminates will cause others to terminate too.
+//
 // Although internally runner.Runner supports waitbefore and multi-command
 // processes, for simplicity of interface these features have been disabled in
 // Procfile parser.
@@ -64,7 +67,7 @@ import (
 )
 
 // Parse takes a reader that contains an extended Procfile.
-func Parse(r io.Reader) (runner.Runner, error) {
+func Parse(r io.Reader) (*runner.Runner, error) {
 	rnr := runner.New()
 
 	scanner := bufio.NewScanner(r)
@@ -122,6 +125,10 @@ func Parse(r io.Reader) (runner.Runner, error) {
 				if strings.HasPrefix(part, "restart=") {
 					restartMode := strings.TrimPrefix(part, "restart=")
 					proc.Restart = runner.ParseRestartMode(restartMode)
+					continue
+				}
+				if strings.HasPrefix(part, "group=") {
+					proc.Group = strings.TrimPrefix(part, "group=")
 					continue
 				}
 				command = append(command, part)

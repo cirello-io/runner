@@ -86,6 +86,11 @@ type ProcessType struct {
 	// - no|<empty>: never restart the process type.
 	// - on-failure|fail: restart the process type if any of the steps fail.
 	Restart RestartMode `json:"restart,omitempty"`
+
+	// Group name. Any number of processes sharing the same group will be
+	// restarted together if anyone happens to fail. Groups are not applied
+	// to build processes.
+	Group string
 }
 
 // Runner defines how this application should be started.
@@ -121,21 +126,32 @@ type Runner struct {
 	BaseEnvironment []string
 
 	longestProcessTypeName int
+
+	mu     sync.Mutex
+	groups map[string]ctxGroup
+}
+
+type ctxGroup struct {
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 // New creates a new runner ready to use.
-func New() Runner {
-	return Runner{
+func New() *Runner {
+	return &Runner{
 		Formation: make(map[string]int),
+		groups:    make(map[string]ctxGroup),
 	}
 }
 
 // Start initiates the application.
-func (r Runner) Start(ctx context.Context) error {
+func (r *Runner) Start(ctx context.Context) error {
 	for _, proc := range r.Processes {
 		name := proc.Name
 		if formation, ok := r.Formation[proc.Name]; ok {
 			name = fmt.Sprintf("%v.%v", proc.Name, formation)
+		} else {
+			name = fmt.Sprintf("%v.%v", proc.Name, 0)
 		}
 
 		if l := len(name); l > r.longestProcessTypeName {
@@ -163,7 +179,7 @@ func (r Runner) Start(ctx context.Context) error {
 	}
 }
 
-func (r Runner) startProcesses(ctx context.Context) {
+func (r *Runner) startProcesses(ctx context.Context) {
 	if ok := r.runBuilds(ctx); !ok {
 		log.Println("error during build, halted")
 		return
@@ -171,6 +187,7 @@ func (r Runner) startProcesses(ctx context.Context) {
 
 	var wgRun sync.WaitGroup
 	var portCount int
+
 	for _, sv := range r.Processes {
 		if strings.HasPrefix(sv.Name, "build") {
 			continue
@@ -186,10 +203,15 @@ func (r Runner) startProcesses(ctx context.Context) {
 			go func(sv *ProcessType, procCount, portCount int) {
 				defer wgRun.Done()
 				for {
-					ok := r.startProcess(ctx, sv, procCount, portCount)
+					lctx := r.contextWithParent(ctx, sv)
+					ok := r.startProcess(lctx, sv, procCount, portCount)
 					select {
 					case <-ctx.Done():
+						log.Println("parent context canceled")
 						return
+					case <-lctx.Done():
+						log.Println("local context canceled")
+						continue
 					default:
 					}
 					stop := !(sv.Restart == Always ||
@@ -197,6 +219,7 @@ func (r Runner) startProcesses(ctx context.Context) {
 					if stop {
 						break
 					}
+					r.cancelGroup(sv.Group)
 				}
 			}(sv, i, portCount)
 			portCount++
@@ -205,7 +228,44 @@ func (r Runner) startProcesses(ctx context.Context) {
 	wgRun.Wait()
 }
 
-func (r Runner) runBuilds(ctx context.Context) bool {
+func (r *Runner) contextWithParent(ctx context.Context, sv *ProcessType) context.Context {
+	if sv.Group == "" {
+		return ctx
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if ctxG, ok := r.groups[sv.Group]; ok {
+		return ctxG.ctx
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	r.groups[sv.Group] = ctxGroup{
+		ctx:    ctx,
+		cancel: cancel,
+	}
+	return ctx
+}
+
+func (r *Runner) cancelGroup(name string) {
+	if name == "" {
+		return
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	ctxG, ok := r.groups[name]
+	if !ok {
+		return
+	}
+
+	delete(r.groups, name)
+	ctxG.cancel()
+}
+
+func (r *Runner) runBuilds(ctx context.Context) bool {
 	var (
 		wgBuild sync.WaitGroup
 		mu      sync.Mutex
@@ -229,7 +289,7 @@ func (r Runner) runBuilds(ctx context.Context) bool {
 	return ok
 }
 
-func (r Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, portCount int) bool {
+func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, portCount int) bool {
 	pr, pw := io.Pipe()
 	procName := sv.Name
 	if procCount > -1 {
@@ -305,7 +365,7 @@ func waitFor(ctx context.Context, w io.Writer, target string) {
 	}
 }
 
-func (r Runner) prefixedPrinter(ctx context.Context, rdr io.Reader, name string) *bufio.Scanner {
+func (r *Runner) prefixedPrinter(ctx context.Context, rdr io.Reader, name string) *bufio.Scanner {
 	paddedName := (name + strings.Repeat(" ", r.longestProcessTypeName))[:r.longestProcessTypeName]
 	scanner := bufio.NewScanner(rdr)
 	scanner.Buffer(make([]byte, 65536), 2*1048576)

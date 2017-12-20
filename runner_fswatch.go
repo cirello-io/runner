@@ -27,7 +27,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
-func (s Runner) monitorWorkDir(ctx context.Context) (<-chan struct{}, error) {
+func (s *Runner) monitorWorkDir(ctx context.Context) (<-chan struct{}, error) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
@@ -71,7 +71,7 @@ func (s Runner) monitorWorkDir(ctx context.Context) (<-chan struct{}, error) {
 	return triggereds, nil
 }
 
-func (s Runner) consumeFsnotifyEvents(ctx context.Context, watcher *fsnotify.Watcher) chan struct{} {
+func (s *Runner) consumeFsnotifyEvents(ctx context.Context, watcher *fsnotify.Watcher) chan struct{} {
 	changeds := make(chan struct{})
 
 	go func() {
@@ -101,7 +101,7 @@ func (s Runner) consumeFsnotifyEvents(ctx context.Context, watcher *fsnotify.Wat
 	return changeds
 }
 
-func (s Runner) triggerRestarts(ctx context.Context, changeds chan struct{}) chan struct{} {
+func (s *Runner) triggerRestarts(ctx context.Context, changeds chan struct{}) chan struct{} {
 	triggereds := make(chan struct{})
 	go func() {
 		lastRun := time.Now()

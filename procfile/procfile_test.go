@@ -30,8 +30,8 @@ func TestParse(t *testing.T) {
 observe: *.go *.js
 ignore: /vendor
 build-server: make server
-web: restart=always waitfor=localhost:8888 ./server serve
-web2: restart=fail waitfor=localhost:8888 ./server serve
+web: group=A restart=always waitfor=localhost:8888 ./server serve
+web2: group=A restart=fail waitfor=localhost:8888 ./server serve
 formation: web=1 web2=2
 malformed-line`
 
@@ -40,43 +40,44 @@ malformed-line`
 		t.Error("unexpected error", err)
 	}
 
-	expected := runner.Runner{
-		WorkDir:     os.ExpandEnv("$GOPATH/src/github.com/example/go-app"),
-		Observables: []string{"*.go", "*.js"},
-		SkipDirs:    []string{"/vendor"},
-		Processes: []*runner.ProcessType{
-			{
-				Name:       "build-server",
-				Cmd:        []string{"make server"},
-				WaitBefore: "",
-				WaitFor:    "",
-			},
-			{
-				Name: "web",
-				Cmd: []string{
-					"./server serve",
-				},
-				WaitBefore: "",
-				WaitFor:    "localhost:8888",
-				Restart:    runner.Always,
-			},
-			{
-				Name: "web2",
-				Cmd: []string{
-					"./server serve",
-				},
-				WaitBefore: "",
-				WaitFor:    "localhost:8888",
-				Restart:    runner.OnFailure,
-			},
+	expected := runner.New()
+	expected.WorkDir = os.ExpandEnv("$GOPATH/src/github.com/example/go-app")
+	expected.Observables = []string{"*.go", "*.js"}
+	expected.SkipDirs = []string{"/vendor"}
+	expected.Processes = []*runner.ProcessType{
+		{
+			Name:       "build-server",
+			Cmd:        []string{"make server"},
+			WaitBefore: "",
+			WaitFor:    "",
 		},
-		Formation: map[string]int{
-			"web":  1,
-			"web2": 2,
+		{
+			Name: "web",
+			Cmd: []string{
+				"./server serve",
+			},
+			WaitBefore: "",
+			WaitFor:    "localhost:8888",
+			Restart:    runner.Always,
+			Group:      "A",
+		},
+		{
+			Name: "web2",
+			Cmd: []string{
+				"./server serve",
+			},
+			WaitBefore: "",
+			WaitFor:    "localhost:8888",
+			Restart:    runner.OnFailure,
+			Group:      "A",
 		},
 	}
+	expected.Formation = map[string]int{
+		"web":  1,
+		"web2": 2,
+	}
 
-	if !reflect.DeepEqual(got, expected) {
+	if !reflect.DeepEqual(*got, *expected) {
 		t.Errorf("parser did not get the right result. got: %#v\nexpected:%#v", got, expected)
 	}
 }
