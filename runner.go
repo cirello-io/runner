@@ -136,6 +136,8 @@ func (r Runner) Start(ctx context.Context) error {
 		name := proc.Name
 		if formation, ok := r.Formation[proc.Name]; ok {
 			name = fmt.Sprintf("%v.%v", proc.Name, formation)
+		} else {
+			name = fmt.Sprintf("%v.%v", proc.Name, 0)
 		}
 
 		if l := len(name); l > r.longestProcessTypeName {
