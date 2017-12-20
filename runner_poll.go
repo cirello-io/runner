@@ -27,7 +27,7 @@ import (
 	"time"
 )
 
-func (s *Runner) monitorWorkDir(ctx context.Context) (<-chan struct{}, error) {
+func (s Runner) monitorWorkDir(ctx context.Context) (<-chan struct{}, error) {
 	lastHash, err := s.calculateObservablesHash()
 	if err != nil {
 		return nil, fmt.Errorf("can't calculate work dir hash: %v", err)
@@ -63,7 +63,7 @@ func (s *Runner) monitorWorkDir(ctx context.Context) (<-chan struct{}, error) {
 	return ch, nil
 }
 
-func (s *Runner) calculateObservablesHash() (string, error) {
+func (s Runner) calculateObservablesHash() (string, error) {
 	hash := sha1.New()
 	err := filepath.Walk(s.WorkDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {

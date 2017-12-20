@@ -101,11 +101,11 @@ func main() {
 		log.Fatalln("invalid IP port")
 	}
 
-	var s *runner.Runner
+	var s runner.Runner
 
 	switch filepath.Ext(fn) {
 	case ".json":
-		if err := json.NewDecoder(fd).Decode(s); err != nil {
+		if err := json.NewDecoder(fd).Decode(&s); err != nil {
 			log.Fatalln("cannot parse spec file (json):", err)
 		}
 	default:
