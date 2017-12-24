@@ -203,7 +203,7 @@ func (r Runner) runBuilds(ctx context.Context) bool {
 func (r Runner) runNonBuilds(ctx context.Context) {
 	var portCount int
 
-	ctx = supervisor.WrapContext(ctx)
+	ctx = supervisor.WithSupervisor(ctx)
 
 	for _, sv := range r.Processes {
 		if strings.HasPrefix(sv.Name, "build") {
