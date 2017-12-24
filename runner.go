@@ -27,6 +27,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"cirello.io/supervisor"
 )
 
 // RestartMode defines if a process should restart itself.
@@ -171,40 +173,7 @@ func (r Runner) startProcesses(ctx context.Context) {
 		return
 	}
 
-	var wgRun sync.WaitGroup
-	var portCount int
-	for _, sv := range r.Processes {
-		if strings.HasPrefix(sv.Name, "build") {
-			continue
-		}
-
-		maxProc := 1
-		if formation, ok := r.Formation[sv.Name]; ok {
-			maxProc = formation
-		}
-
-		for i := 0; i < maxProc; i++ {
-			wgRun.Add(1)
-			go func(sv *ProcessType, procCount, portCount int) {
-				defer wgRun.Done()
-				for {
-					ok := r.startProcess(ctx, sv, procCount, portCount)
-					select {
-					case <-ctx.Done():
-						return
-					default:
-					}
-					stop := !(sv.Restart == Always ||
-						!ok && sv.Restart == OnFailure)
-					if stop {
-						break
-					}
-				}
-			}(sv, i, portCount)
-			portCount++
-		}
-	}
-	wgRun.Wait()
+	r.runNonBuilds(ctx)
 }
 
 func (r Runner) runBuilds(ctx context.Context) bool {
@@ -229,6 +198,50 @@ func (r Runner) runBuilds(ctx context.Context) bool {
 	}
 	wgBuild.Wait()
 	return ok
+}
+
+func (r Runner) runNonBuilds(ctx context.Context) {
+	var portCount int
+
+	svr := supervisor.Group{
+		Supervisor: &supervisor.Supervisor{
+			Name:        "runner",
+			MaxRestarts: supervisor.AlwaysRestart,
+			Log:         func(v interface{}) {},
+		},
+	}
+
+	for _, sv := range r.Processes {
+		if strings.HasPrefix(sv.Name, "build") {
+			continue
+		}
+
+		maxProc := 1
+		if formation, ok := r.Formation[sv.Name]; ok {
+			maxProc = formation
+		}
+
+		for i := 0; i < maxProc; i++ {
+			sv, i, pc := sv, i, portCount
+
+			opt := supervisor.Transient
+			switch sv.Restart {
+			case Always:
+				opt = supervisor.Permanent
+			case OnFailure:
+				opt = supervisor.Transient
+			}
+			svr.AddFunc(func(ctx context.Context) {
+				ok := r.startProcess(ctx, sv, i, pc)
+				if !ok && sv.Restart == OnFailure {
+					panic("restarting on failure")
+				}
+			}, opt)
+			portCount++
+		}
+	}
+
+	svr.Serve(ctx)
 }
 
 func (r Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, portCount int) bool {

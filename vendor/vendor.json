@@ -3,6 +3,12 @@
 	"ignore": "test",
 	"package": [
 		{
+			"checksumSHA1": "5C59Lj7qilvgBRMd732/HRVaFCs=",
+			"path": "cirello.io/supervisor",
+			"revision": "957451eec549cd3f30e8e80d4c8b14663773e450",
+			"revisionTime": "2017-12-24T12:54:28Z"
+		},
+		{
 			"checksumSHA1": "x2Km0Qy3WgJJnV19Zv25VwTJcBM=",
 			"path": "github.com/fsnotify/fsnotify",
 			"revision": "4da3e2cfbabc9f751898f250b49f2439785783a1",
