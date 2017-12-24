@@ -3,10 +3,16 @@
 	"ignore": "test",
 	"package": [
 		{
-			"checksumSHA1": "5C59Lj7qilvgBRMd732/HRVaFCs=",
+			"checksumSHA1": "vwdGVjVQuA3a4cMRMoOUg64DSdw=",
 			"path": "cirello.io/supervisor",
-			"revision": "957451eec549cd3f30e8e80d4c8b14663773e450",
-			"revisionTime": "2017-12-24T12:54:28Z"
+			"revision": "dc4f8c1d811eb600e9d00822ba2447bb333b7560",
+			"revisionTime": "2017-12-24T14:33:42Z"
+		},
+		{
+			"checksumSHA1": "gpuOSMVXikN9qIYRkYPjro6Gs00=",
+			"path": "cirello.io/supervisor/easy",
+			"revision": "dc4f8c1d811eb600e9d00822ba2447bb333b7560",
+			"revisionTime": "2017-12-24T14:33:42Z"
 		},
 		{
 			"checksumSHA1": "x2Km0Qy3WgJJnV19Zv25VwTJcBM=",

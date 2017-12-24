@@ -21,26 +21,27 @@ const (
 	temporary
 )
 
-type service struct {
+// ServiceSpecification defines how a service is executed by the supervisor.
+type ServiceSpecification struct {
 	svc     Service
 	svctype serviceType
 }
 
 // ServiceOption modifies the service specifications.
-type ServiceOption func(*service)
+type ServiceOption func(*ServiceSpecification)
 
 // Permanent services are always restarted
-func Permanent(s *service) {
+func Permanent(s *ServiceSpecification) {
 	s.svctype = permanent
 }
 
 // Transient services are restarted only when panic.
-func Transient(s *service) {
+func Transient(s *ServiceSpecification) {
 	s.svctype = transient
 }
 
 // Temporary services are never restarted.
-func Temporary(s *service) {
+func Temporary(s *ServiceSpecification) {
 	s.svctype = temporary
 }
 
@@ -96,10 +97,10 @@ type Supervisor struct {
 	runningServices sync.WaitGroup
 
 	mu           sync.Mutex
-	svcorder     []string                      // order in which services must be started
-	services     map[string]service            // added services
-	cancelations map[string]context.CancelFunc // each service cancelation
-	terminations map[string]context.CancelFunc // each service termination call
+	svcorder     []string                        // order in which services must be started
+	services     map[string]ServiceSpecification // added services
+	cancelations map[string]context.CancelFunc   // each service cancelation
+	terminations map[string]context.CancelFunc   // each service termination call
 	lastRestart  time.Time
 	restarts     int
 }
@@ -132,7 +133,7 @@ func (s *Supervisor) reset() {
 
 	s.added = make(chan struct{})
 	s.cancelations = make(map[string]context.CancelFunc)
-	s.services = make(map[string]service)
+	s.services = make(map[string]ServiceSpecification)
 	s.terminations = make(map[string]context.CancelFunc)
 	s.mu.Unlock()
 }
@@ -172,8 +173,10 @@ func (s *Supervisor) Add(service Service, opts ...ServiceOption) {
 
 // AddFunc inserts into the Supervisor tree a new permanent anonymous service.
 // If the Supervisor is already started, it will start it automatically.
-func (s *Supervisor) AddFunc(f func(context.Context), opts ...ServiceOption) {
-	s.addService(newAnonymousService(f), opts...)
+func (s *Supervisor) AddFunc(f func(context.Context), opts ...ServiceOption) string {
+	svc := newAnonymousService(f)
+	s.addService(svc, opts...)
+	return svc.String()
 }
 
 func (s *Supervisor) addService(svc Service, opts ...ServiceOption) {
@@ -181,7 +184,7 @@ func (s *Supervisor) addService(svc Service, opts ...ServiceOption) {
 
 	name := fmt.Sprintf("%s", svc)
 	s.mu.Lock()
-	newsvc := service{
+	newsvc := ServiceSpecification{
 		svc: svc,
 	}
 	for _, opt := range opts {
@@ -254,4 +257,8 @@ func (s *Supervisor) Services() map[string]Service {
 func (s *Supervisor) String() string {
 	s.prepare()
 	return s.name
+}
+
+func (s *Supervisor) logf(format string, a ...interface{}) {
+	s.log(fmt.Sprintf(format, a...))
 }

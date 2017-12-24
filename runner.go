@@ -28,7 +28,7 @@ import (
 	"sync"
 	"time"
 
-	"cirello.io/supervisor"
+	supervisor "cirello.io/supervisor/easy"
 )
 
 // RestartMode defines if a process should restart itself.
@@ -203,13 +203,7 @@ func (r Runner) runBuilds(ctx context.Context) bool {
 func (r Runner) runNonBuilds(ctx context.Context) {
 	var portCount int
 
-	svr := supervisor.Group{
-		Supervisor: &supervisor.Supervisor{
-			Name:        "runner",
-			MaxRestarts: supervisor.AlwaysRestart,
-			Log:         func(v interface{}) {},
-		},
-	}
+	ctx = supervisor.WrapContext(ctx)
 
 	for _, sv := range r.Processes {
 		if strings.HasPrefix(sv.Name, "build") {
@@ -224,14 +218,14 @@ func (r Runner) runNonBuilds(ctx context.Context) {
 		for i := 0; i < maxProc; i++ {
 			sv, i, pc := sv, i, portCount
 
-			opt := supervisor.Transient
+			opt := supervisor.Transient()
 			switch sv.Restart {
 			case Always:
-				opt = supervisor.Permanent
+				opt = supervisor.Permanent()
 			case OnFailure:
-				opt = supervisor.Transient
+				opt = supervisor.Transient()
 			}
-			svr.AddFunc(func(ctx context.Context) {
+			supervisor.Add(ctx, func(ctx context.Context) {
 				ok := r.startProcess(ctx, sv, i, pc)
 				if !ok && sv.Restart == OnFailure {
 					panic("restarting on failure")
@@ -241,7 +235,7 @@ func (r Runner) runNonBuilds(ctx context.Context) {
 		}
 	}
 
-	svr.Serve(ctx)
+	<-ctx.Done()
 }
 
 func (r Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, portCount int) bool {
