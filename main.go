@@ -76,10 +76,10 @@ const DefaultProcfile = "Procfile"
 
 var (
 	convertToJSON = flag.Bool("convert", false, "takes a declared Procfile and prints as JSON to standard output")
-	basePort      = flag.Int("port", 5000, "IP port used to set $`PORT` for each process type")
+	basePort      = flag.Int("port", 5000, "base IP port used to set $`PORT` for each process type")
 	formation     = flag.String("formation", "", "formation allows to start more than one instance of a process type, format: `procTypeA=# procTypeB=# ... procTypeN=#`")
 	envFn         = flag.String("env", ".env", "environment `file` to be loaded for all processes.")
-	skipProcs     = flag.String("skip", "", "does not run some of the process types, format: `procTypeA,procTypeB,procTypeN`")
+	skipProcs     = flag.String("skip", "", "does not run some of the process types, format: `procTypeA procTypeB procTypeN`")
 )
 
 func init() {
@@ -176,7 +176,7 @@ func main() {
 }
 
 func filterSkippedProcs(skip string, processes []*runner.ProcessType) []*runner.ProcessType {
-	skipProcs, newProcs := strings.Split(skip, ","), []*runner.ProcessType{}
+	skipProcs, newProcs := strings.Split(skip, " "), []*runner.ProcessType{}
 procTypes:
 	for _, procType := range processes {
 		for _, skip := range skipProcs {
