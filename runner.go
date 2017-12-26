@@ -203,7 +203,7 @@ func (r Runner) runBuilds(ctx context.Context) bool {
 func (r Runner) runNonBuilds(ctx context.Context) {
 	var portCount int
 
-	ctx = supervisor.WithSupervisor(ctx)
+	ctx = supervisor.WithContext(ctx)
 
 	for _, sv := range r.Processes {
 		if strings.HasPrefix(sv.Name, "build") {
@@ -218,12 +218,12 @@ func (r Runner) runNonBuilds(ctx context.Context) {
 		for i := 0; i < maxProc; i++ {
 			sv, i, pc := sv, i, portCount
 
-			opt := supervisor.Transient()
+			opt := supervisor.Temporary
 			switch sv.Restart {
 			case Always:
-				opt = supervisor.Permanent()
+				opt = supervisor.Permanent
 			case OnFailure:
-				opt = supervisor.Transient()
+				opt = supervisor.Transient
 			}
 			supervisor.Add(ctx, func(ctx context.Context) {
 				ok := r.startProcess(ctx, sv, i, pc)

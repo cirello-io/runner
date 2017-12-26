@@ -12,7 +12,7 @@ context.
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		// use cancel() to stop the supervisor
-		ctx = supervisor.WithSupervisor(ctx)
+		ctx = supervisor.WithContext(ctx)
 		supervisor.Add(ctx, func(ctx context.Context) {
 			// ...
 		})
@@ -36,32 +36,28 @@ const supervisorName ctxKey = 0
 
 var (
 	// ErrNoSupervisorAttached means that the given context has not been
-	// wrapped with WithSupervisor, and thus this package cannot detect
+	// wrapped with WithContext, and thus this package cannot detect
 	// which supervisore you are referring to.
 	ErrNoSupervisorAttached = errors.New("no supervisor attached to context")
 
 	mu          sync.Mutex
-	supervisors map[string]*supervisor.Group // map of supevisor name to supervisor.Supervisor
+	supervisors map[string]*supervisor.Group // map of supervisor name to supervisor.Supervisor
 )
 
 func init() {
 	supervisors = make(map[string]*supervisor.Group)
 }
 
-// Permanent services are always restarted.
-func Permanent() supervisor.ServiceOption {
-	return supervisor.Permanent
-}
+var (
+	// Permanent services are always restarted.
+	Permanent = supervisor.Permanent
 
-// Transient services are restarted only when panic.
-func Transient() supervisor.ServiceOption {
-	return supervisor.Transient
-}
+	// Transient services are restarted only when panic.
+	Transient = supervisor.Transient
 
-// Temporary services are never restarted.
-func Temporary() supervisor.ServiceOption {
-	return supervisor.Temporary
-}
+	// Temporary services are never restarted.
+	Temporary = supervisor.Temporary
+)
 
 // Add inserts supervised function to the attached supervisor, it launches
 // automatically. If the context is not correctly prepared, it returns an
@@ -99,10 +95,10 @@ func Remove(ctx context.Context, name string) error {
 	return nil
 }
 
-// WithSupervisor takes a context and prepare it to be used by easy supervisor
+// WithContext takes a context and prepare it to be used by easy supervisor
 // package. Internally, it creates a supervisor in group mode. In this mode,
 // every time a service dies, the whole supervisor is restarted.
-func WithSupervisor(ctx context.Context) context.Context {
+func WithContext(ctx context.Context) context.Context {
 	chosenName := fmt.Sprintf("supervisor-%d", rand.Uint64())
 
 	wrapped := context.WithValue(ctx, supervisorName, chosenName)
