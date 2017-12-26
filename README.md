@@ -4,7 +4,7 @@
 [![Go Report Card](https://goreportcard.com/badge/cirello.io/runner)](https://goreportcard.com/report/cirello.io/runner)
 [![License](https://img.shields.io/badge/license-apache%202.0-blue.svg)](https://choosealicense.com/licenses/apache-2.0/)
 
-runner is a very ugly and simple structured command executer that
+runner is a very ugly and ~~simple~~ structured command executer that
 monitor file changes to trigger process restarts.
 
 Create a file name Procfile in the root of the project you want to run, and add
@@ -43,6 +43,52 @@ before starting the process type.
 process type fails, it will halt all others in the same group. If the
 "restart" paramater is not set to "always" or "fail", the affected process
 types will halt and not restart.
+
+## CLI parameters
+
+```Shell
+runner - simple Procfile runner
+
+usage: runner [-convert] [Procfile]
+
+Options:
+  -convert
+    	takes a declared Procfile and prints as JSON to standard output
+  -env file
+    	environment file to be loaded for all processes. (default ".env")
+  -formation procTypeA=# procTypeB=# ... procTypeN=#
+    	formation allows to start more than one instance of a process type, format: procTypeA=# procTypeB=# ... procTypeN=#
+  -port PORT
+    	base IP port used to set $PORT for each process type (default 5000)
+  -skip procTypeA procTypeB procTypeN
+    	does not run some of the process types, format: procTypeA procTypeB procTypeN
+```
+
+`-convert` allows you to generate a JSON version of the Procfile. This format
+is more verbose but allows for more options. It can be used to add more steps
+for each process type and to network readiness test before the first step, or
+before the last one. [Refer to this datastructure to understand its possibilities.](https://godoc.org/cirello.io/runner/runner#Runner)
+
+`-env file` loads the environment file common to all process types. It must be
+in the format below:
+```
+VARIABLENAME=VALUE
+VARIABLENAME=VALUE
+```
+Note: one environment variable per line. If the environment file is set, the
+shell environment is discarded.
+
+`-formation procTypeA=# procTypeB=# ... procTypeN=#` can be used to start more
+than one instance of a process type. It is commonly used to start many
+supporting background workers to an application.
+
+`-port PORT` is the base IP port number used for each process type. It passes
+the port number as an environment variable named `$PORT` to the process, and
+it can be used as means to facilitate the application start up.
+
+`-skip procTypeA procTypeB procTypeN` allows for partial execution of a Procfile.
+If a formation is given, it does not start any instance of the specified process
+type.
 
 ## Installation
 `go get [-f -u] [-tags poll] cirello.io/runner`
