@@ -30,8 +30,8 @@ func TestParse(t *testing.T) {
 observe: *.go *.js
 ignore: /vendor
 build-server: make server
-web: restart=always waitfor=localhost:8888 ./server serve
-web2: restart=fail waitfor=localhost:8888 ./server serve
+web: group=service restart=always waitfor=localhost:8888 ./server serve
+web2: group=service restart=fail waitfor=localhost:8888 ./server serve
 formation: web=1 web2=2
 malformed-line`
 
@@ -59,6 +59,7 @@ malformed-line`
 				WaitBefore: "",
 				WaitFor:    "localhost:8888",
 				Restart:    runner.Always,
+				Group:      "service",
 			},
 			{
 				Name: "web2",
@@ -68,6 +69,7 @@ malformed-line`
 				WaitBefore: "",
 				WaitFor:    "localhost:8888",
 				Restart:    runner.OnFailure,
+				Group:      "service",
 			},
 		},
 		Formation: map[string]int{

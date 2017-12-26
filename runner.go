@@ -88,6 +88,10 @@ type ProcessType struct {
 	// - no|<empty>: never restart the process type.
 	// - on-failure|fail: restart the process type if any of the steps fail.
 	Restart RestartMode `json:"restart,omitempty"`
+
+	// Group defines to which supervisor group this process type belongs.
+	// Group is useful to contain restart to a subset of the process types.
+	Group string
 }
 
 // Runner defines how this application should be started.
@@ -202,8 +206,8 @@ func (r Runner) runBuilds(ctx context.Context) bool {
 
 func (r Runner) runNonBuilds(ctx context.Context) {
 	var portCount int
-
 	ctx = supervisor.WithContext(ctx)
+	groups := make(map[string]context.Context)
 
 	for _, sv := range r.Processes {
 		if strings.HasPrefix(sv.Name, "build") {
@@ -213,6 +217,16 @@ func (r Runner) runNonBuilds(ctx context.Context) {
 		maxProc := 1
 		if formation, ok := r.Formation[sv.Name]; ok {
 			maxProc = formation
+		}
+
+		procCtx := ctx
+		if sv.Group != "" {
+			groupCtx, ok := groups[sv.Group]
+			if !ok {
+				groupCtx = supervisor.WithContext(ctx)
+				groups[sv.Group] = groupCtx
+			}
+			procCtx = groupCtx
 		}
 
 		for i := 0; i < maxProc; i++ {
@@ -225,7 +239,7 @@ func (r Runner) runNonBuilds(ctx context.Context) {
 			case OnFailure:
 				opt = supervisor.Transient
 			}
-			supervisor.Add(ctx, func(ctx context.Context) {
+			supervisor.Add(procCtx, func(ctx context.Context) {
 				ok := r.startProcess(ctx, sv, i, pc)
 				if !ok && sv.Restart == OnFailure {
 					panic("restarting on failure")

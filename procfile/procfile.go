@@ -48,6 +48,11 @@
 // - restart (in process type): "always" will restart the process type every
 // time; "fail" will restart the process type on failure.
 //
+// - group (in process type): group of processes that depend on each other. If a
+// process type fails, it will halt all others in the same group. If the
+// "restart" paramater is not set to "always" or "fail", the affected process
+// types will halt and not restart.
+//
 // Although internally runner.Runner supports waitbefore and multi-command
 // processes, for simplicity of interface these features have been disabled in
 // Procfile parser.
@@ -122,6 +127,10 @@ func Parse(r io.Reader) (runner.Runner, error) {
 				if strings.HasPrefix(part, "restart=") {
 					restartMode := strings.TrimPrefix(part, "restart=")
 					proc.Restart = runner.ParseRestartMode(restartMode)
+					continue
+				}
+				if strings.HasPrefix(part, "group=") {
+					proc.Group = strings.TrimPrefix(part, "group=")
 					continue
 				}
 				command = append(command, part)
