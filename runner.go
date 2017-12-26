@@ -216,11 +216,10 @@ func (r *Runner) runBuilds(ctx context.Context) bool {
 }
 
 func (r *Runner) runNonBuilds(ctx context.Context) {
-	var portCount int
 	ctx = supervisor.WithContext(ctx)
 	groups := make(map[string]context.Context)
 
-	for _, sv := range r.Processes {
+	for j, sv := range r.Processes {
 		if strings.HasPrefix(sv.Name, "build") {
 			continue
 		}
@@ -240,6 +239,7 @@ func (r *Runner) runNonBuilds(ctx context.Context) {
 			procCtx = groupCtx
 		}
 
+		portCount := j * 100
 		for i := 0; i < maxProc; i++ {
 			sv, i, pc := sv, i, portCount
 

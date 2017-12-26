@@ -59,7 +59,7 @@ Options:
   -formation procTypeA=# procTypeB=# ... procTypeN=#
     	formation allows to start more than one instance of a process type, format: procTypeA=# procTypeB=# ... procTypeN=#
   -port PORT
-    	base IP port used to set $PORT for each process type (default 5000)
+    	base IP port used to set $`PORT` for each process type. Should be multiple of 1000. (default 5000)
   -skip procTypeA procTypeB procTypeN
     	does not run some of the process types, format: procTypeA procTypeB procTypeN
 ```
