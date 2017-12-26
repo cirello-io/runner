@@ -127,17 +127,27 @@ type Runner struct {
 	BaseEnvironment []string
 
 	longestProcessTypeName int
+
+	// ServiceDiscoveryAddr is the net.Listen address used to bind the
+	// service discovery service. Set to empty to disable it. If activated
+	// this address is passed to the processes through the environment
+	// variable named "DISCOVERY".
+	ServiceDiscoveryAddr string
+
+	sdMu             sync.Mutex
+	serviceDiscovery map[string]int
 }
 
 // New creates a new runner ready to use.
 func New() Runner {
 	return Runner{
-		Formation: make(map[string]int),
+		Formation:        make(map[string]int),
+		serviceDiscovery: make(map[string]int),
 	}
 }
 
 // Start initiates the application.
-func (r Runner) Start(ctx context.Context) error {
+func (r *Runner) Start(ctx context.Context) error {
 	for _, proc := range r.Processes {
 		name := proc.Name
 		if formation, ok := r.Formation[proc.Name]; ok {
@@ -152,13 +162,14 @@ func (r Runner) Start(ctx context.Context) error {
 	}
 	r.longestProcessTypeName++
 
+	go r.serveServiceDiscovery(ctx)
+
 	updates, err := r.monitorWorkDir(ctx)
 	if err != nil {
 		return err
 	}
 
 	for {
-
 		c, cancel := context.WithCancel(ctx)
 		go r.startProcesses(c)
 		select {
@@ -171,7 +182,7 @@ func (r Runner) Start(ctx context.Context) error {
 	}
 }
 
-func (r Runner) startProcesses(ctx context.Context) {
+func (r *Runner) startProcesses(ctx context.Context) {
 	if ok := r.runBuilds(ctx); !ok {
 		log.Println("error during build, halted")
 		return
@@ -180,7 +191,7 @@ func (r Runner) startProcesses(ctx context.Context) {
 	r.runNonBuilds(ctx)
 }
 
-func (r Runner) runBuilds(ctx context.Context) bool {
+func (r *Runner) runBuilds(ctx context.Context) bool {
 	var (
 		wgBuild sync.WaitGroup
 		mu      sync.Mutex
@@ -204,7 +215,7 @@ func (r Runner) runBuilds(ctx context.Context) bool {
 	return ok
 }
 
-func (r Runner) runNonBuilds(ctx context.Context) {
+func (r *Runner) runNonBuilds(ctx context.Context) {
 	var portCount int
 	ctx = supervisor.WithContext(ctx)
 	groups := make(map[string]context.Context)
@@ -252,17 +263,28 @@ func (r Runner) runNonBuilds(ctx context.Context) {
 	<-ctx.Done()
 }
 
-func (r Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, portCount int) bool {
+func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, portCount int) bool {
 	pr, pw := io.Pipe()
 	procName := sv.Name
+	port := r.BasePort + portCount
 	if procCount > -1 {
 		procName = fmt.Sprintf("%v.%v", procName, procCount)
+	}
+	if portCount > -1 {
+		r.sdMu.Lock()
+		r.serviceDiscovery[procName] = port
+		r.sdMu.Unlock()
+		defer func() {
+			r.sdMu.Lock()
+			delete(r.serviceDiscovery, procName)
+			r.sdMu.Unlock()
+		}()
 	}
 	r.prefixedPrinter(ctx, pr, procName)
 
 	defer pw.Close()
 	defer pr.Close()
-	port := r.BasePort + portCount
+
 	for idx, cmd := range sv.Cmd {
 		fmt.Fprintln(pw, "running", `"`+cmd+`"`)
 		if portCount > -1 {
@@ -279,6 +301,10 @@ func (r Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, po
 		c.Env = append(c.Env, fmt.Sprintf("PS=%v", procName))
 		if portCount > -1 {
 			c.Env = append(c.Env, fmt.Sprintf("PORT=%d", port))
+		}
+
+		if r.ServiceDiscoveryAddr != "" {
+			c.Env = append(c.Env, fmt.Sprintf("DISCOVERY=%v", r.ServiceDiscoveryAddr))
 		}
 
 		stderrPipe, err := c.StderrPipe()
@@ -328,7 +354,7 @@ func waitFor(ctx context.Context, w io.Writer, target string) {
 	}
 }
 
-func (r Runner) prefixedPrinter(ctx context.Context, rdr io.Reader, name string) *bufio.Scanner {
+func (r *Runner) prefixedPrinter(ctx context.Context, rdr io.Reader, name string) *bufio.Scanner {
 	paddedName := (name + strings.Repeat(" ", r.longestProcessTypeName))[:r.longestProcessTypeName]
 	scanner := bufio.NewScanner(rdr)
 	scanner.Buffer(make([]byte, 65536), 2*1048576)

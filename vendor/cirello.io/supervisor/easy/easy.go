@@ -61,7 +61,7 @@ var (
 
 // Add inserts supervised function to the attached supervisor, it launches
 // automatically. If the context is not correctly prepared, it returns an
-// ErrNoSupervisorAttached error
+// ErrNoSupervisorAttached error. By default, the restart policy is Permanent.
 func Add(ctx context.Context, f func(context.Context), opts ...supervisor.ServiceOption) (string, error) {
 	name, ok := extractName(ctx)
 	if !ok {
@@ -73,6 +73,7 @@ func Add(ctx context.Context, f func(context.Context), opts ...supervisor.Servic
 	if !ok {
 		panic("supervisor not found")
 	}
+	opts = append([]supervisor.ServiceOption{Permanent}, opts...)
 	svcName := svr.AddFunc(f, opts...)
 	return svcName, nil
 }
@@ -98,22 +99,39 @@ func Remove(ctx context.Context, name string) error {
 // WithContext takes a context and prepare it to be used by easy supervisor
 // package. Internally, it creates a supervisor in group mode. In this mode,
 // every time a service dies, the whole supervisor is restarted.
-func WithContext(ctx context.Context) context.Context {
+func WithContext(ctx context.Context, opts ...SupervisorOption) context.Context {
 	chosenName := fmt.Sprintf("supervisor-%d", rand.Uint64())
 
-	wrapped := context.WithValue(ctx, supervisorName, chosenName)
-	svr := &supervisor.Group{
-		Supervisor: &supervisor.Supervisor{
-			MaxRestarts: supervisor.AlwaysRestart,
-			Log:         func(interface{}) {},
-		},
+	svr := &supervisor.Supervisor{
+		Name:        chosenName,
+		MaxRestarts: supervisor.AlwaysRestart,
+		Log:         func(interface{}) {},
+	}
+	for _, opt := range opts {
+		opt(svr)
+	}
+	group := &supervisor.Group{
+		Supervisor: svr,
 	}
 	mu.Lock()
-	supervisors[chosenName] = svr
+	supervisors[chosenName] = group
 	mu.Unlock()
-	go svr.Serve(wrapped)
 
+	wrapped := context.WithValue(ctx, supervisorName, chosenName)
+	go group.Serve(wrapped)
 	return wrapped
+}
+
+// SupervisorOption reconfigures the supervisor attached to the context.
+type SupervisorOption func(*supervisor.Supervisor)
+
+// WithLogger attaches a log function to the supervisor
+func WithLogger(logger func(a ...interface{})) SupervisorOption {
+	return func(s *supervisor.Supervisor) {
+		s.Log = func(v interface{}) {
+			logger(v)
+		}
+	}
 }
 
 func extractName(ctx context.Context) (string, bool) {
