@@ -17,7 +17,9 @@ package runner // import "cirello.io/runner/runner"
 
 import (
 	"bufio"
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -30,6 +32,11 @@ import (
 
 	supervisor "cirello.io/supervisor/easy"
 )
+
+// ErrNonUniqueProcessTypeName is returned when starting the runner, it detects
+// that its configuration possesses non unique process type names after it
+// normalizes them.
+var ErrNonUniqueProcessTypeName = errors.New("non unique process type name")
 
 // RestartMode defines if a process should restart itself.
 type RestartMode string
@@ -134,20 +141,22 @@ type Runner struct {
 	// variable named "DISCOVERY".
 	ServiceDiscoveryAddr string
 
-	sdMu             sync.Mutex
-	serviceDiscovery map[string]int
+	sdMu                    sync.Mutex
+	dynamicServiceDiscovery map[string]int
+	staticServiceDiscovery  []string
 }
 
 // New creates a new runner ready to use.
 func New() Runner {
 	return Runner{
-		Formation:        make(map[string]int),
-		serviceDiscovery: make(map[string]int),
+		Formation:               make(map[string]int),
+		dynamicServiceDiscovery: make(map[string]int),
 	}
 }
 
 // Start initiates the application.
 func (r *Runner) Start(ctx context.Context) error {
+	nameDict := make(map[string]struct{})
 	for _, proc := range r.Processes {
 		name := proc.Name
 		if formation, ok := r.Formation[proc.Name]; ok {
@@ -155,6 +164,11 @@ func (r *Runner) Start(ctx context.Context) error {
 		} else {
 			name = fmt.Sprintf("%v.%v", proc.Name, 0)
 		}
+
+		if _, ok := nameDict[normalizeByEnvVarRules(name)]; ok {
+			return ErrNonUniqueProcessTypeName
+		}
+		nameDict[normalizeByEnvVarRules(name)] = struct{}{}
 
 		if l := len(name); l > r.longestProcessTypeName {
 			r.longestProcessTypeName = l
@@ -218,6 +232,7 @@ func (r *Runner) runBuilds(ctx context.Context) bool {
 func (r *Runner) runNonBuilds(ctx context.Context) {
 	ctx = supervisor.WithContext(ctx)
 	groups := make(map[string]context.Context)
+	ready := make(chan struct{})
 
 	for j, sv := range r.Processes {
 		if strings.HasPrefix(sv.Name, "build") {
@@ -251,16 +266,45 @@ func (r *Runner) runNonBuilds(ctx context.Context) {
 				opt = supervisor.Transient
 			}
 			supervisor.Add(procCtx, func(ctx context.Context) {
+				<-ready
 				ok := r.startProcess(ctx, sv, i, pc)
 				if !ok && sv.Restart == OnFailure {
 					panic("restarting on failure")
 				}
 			}, opt)
+
+			discoveryEnvVar := normalizeByEnvVarRules(
+				fmt.Sprintf("%s_%d_PORT", sv.Name, i),
+			)
+			r.staticServiceDiscovery = append(
+				r.staticServiceDiscovery,
+				fmt.Sprintf("%s=localhost:%d", discoveryEnvVar, r.BasePort+portCount),
+			)
+
 			portCount++
 		}
 	}
+	close(ready)
 
 	<-ctx.Done()
+}
+
+// normalizeByEnvVarRules takes any name and rewrites it to be compliant with
+// the POSIX standards on shells section of IEEE Std 1003.1-2008 / IEEE POSIX
+// P1003.2/ISO 9945.2 Shell and Tools standard.
+func normalizeByEnvVarRules(name string) string {
+	//[a-zA-Z_]+[a-zA-Z0-9_]*
+	var buf bytes.Buffer
+	for i, v := range name {
+		switch {
+		case i == 0 && v >= '0' && v <= '9',
+			!(v >= 'a' && v <= 'z' || v >= 'A' && v <= 'Z' || v >= '0' && v <= '9'):
+			buf.WriteRune('_')
+			continue
+		}
+		buf.WriteRune(v)
+	}
+	return strings.ToUpper(buf.String())
 }
 
 func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, portCount int) bool {
@@ -272,11 +316,11 @@ func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, p
 	}
 	if portCount > -1 {
 		r.sdMu.Lock()
-		r.serviceDiscovery[procName] = port
+		r.dynamicServiceDiscovery[procName] = port
 		r.sdMu.Unlock()
 		defer func() {
 			r.sdMu.Lock()
-			delete(r.serviceDiscovery, procName)
+			delete(r.dynamicServiceDiscovery, procName)
 			r.sdMu.Unlock()
 		}()
 	}
@@ -305,6 +349,7 @@ func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, p
 
 		if r.ServiceDiscoveryAddr != "" {
 			c.Env = append(c.Env, fmt.Sprintf("DISCOVERY=%v", r.ServiceDiscoveryAddr))
+			c.Env = append(c.Env, r.staticServiceDiscovery...)
 		}
 
 		stderrPipe, err := c.StderrPipe()
@@ -359,7 +404,7 @@ func (r *Runner) resolveProcessTypeAddress(target string) string {
 	r.sdMu.Lock()
 	defer r.sdMu.Unlock()
 
-	for name, port := range r.serviceDiscovery {
+	for name, port := range r.dynamicServiceDiscovery {
 		if strings.HasPrefix(name, target) {
 			return fmt.Sprint("localhost:", port)
 		}

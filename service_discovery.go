@@ -30,7 +30,7 @@ func (r *Runner) serveServiceDiscovery(ctx context.Context) error {
 			enc.SetIndent("", "    ")
 			r.sdMu.Lock()
 			defer r.sdMu.Unlock()
-			err := enc.Encode(r.serviceDiscovery)
+			err := enc.Encode(r.dynamicServiceDiscovery)
 			if err != nil {
 				log.Println("cannot serve service discovery request:", err)
 			}

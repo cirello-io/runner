@@ -40,46 +40,45 @@ malformed-line`
 		t.Error("unexpected error", err)
 	}
 
-	expected := runner.Runner{
-		WorkDir:     os.ExpandEnv("$GOPATH/src/github.com/example/go-app"),
-		Observables: []string{"*.go", "*.js"},
-		SkipDirs:    []string{"/vendor"},
-		Processes: []*runner.ProcessType{
-			{
-				Name:       "build-server",
-				Cmd:        []string{"make server"},
-				WaitBefore: "",
-				WaitFor:    "",
-			},
-			{
-				Name: "web",
-				Cmd: []string{
-					"./server serve",
-				},
-				WaitBefore: "",
-				WaitFor:    "localhost:8888",
-				Restart:    runner.Always,
-				Group:      "service",
-			},
-			{
-				Name: "web2",
-				Cmd: []string{
-					"./server serve",
-				},
-				WaitBefore: "",
-				WaitFor:    "localhost:8888",
-				Restart:    runner.OnFailure,
-				Group:      "service",
-			},
+	expected := runner.New()
+	expected.WorkDir = os.ExpandEnv("$GOPATH/src/github.com/example/go-app")
+	expected.Observables = []string{"*.go", "*.js"}
+	expected.SkipDirs = []string{"/vendor"}
+	expected.Processes = []*runner.ProcessType{
+		{
+			Name:       "build-server",
+			Cmd:        []string{"make server"},
+			WaitBefore: "",
+			WaitFor:    "",
 		},
-		Formation: map[string]int{
-			"web":  1,
-			"web2": 2,
+		{
+			Name: "web",
+			Cmd: []string{
+				"./server serve",
+			},
+			WaitBefore: "",
+			WaitFor:    "localhost:8888",
+			Restart:    runner.Always,
+			Group:      "service",
+		},
+		{
+			Name: "web2",
+			Cmd: []string{
+				"./server serve",
+			},
+			WaitBefore: "",
+			WaitFor:    "localhost:8888",
+			Restart:    runner.OnFailure,
+			Group:      "service",
 		},
 	}
+	expected.Formation = map[string]int{
+		"web":  1,
+		"web2": 2,
+	}
 
-	if !reflect.DeepEqual(got, expected) {
-		t.Errorf("parser did not get the right result. got: %#v\nexpected:%#v", got, expected)
+	if !reflect.DeepEqual(&got, &expected) {
+		t.Errorf("parser did not get the right result. got: %#v\nexpected:%#v", &got, &expected)
 	}
 }
 
