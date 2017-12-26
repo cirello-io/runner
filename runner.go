@@ -142,7 +142,7 @@ type Runner struct {
 	ServiceDiscoveryAddr string
 
 	sdMu                    sync.Mutex
-	dynamicServiceDiscovery map[string]int
+	dynamicServiceDiscovery map[string]string
 	staticServiceDiscovery  []string
 }
 
@@ -150,7 +150,7 @@ type Runner struct {
 func New() Runner {
 	return Runner{
 		Formation:               make(map[string]int),
-		dynamicServiceDiscovery: make(map[string]int),
+		dynamicServiceDiscovery: make(map[string]string),
 	}
 }
 
@@ -273,12 +273,9 @@ func (r *Runner) runNonBuilds(ctx context.Context) {
 				}
 			}, opt)
 
-			discoveryEnvVar := normalizeByEnvVarRules(
-				fmt.Sprintf("%s_%d_PORT", sv.Name, i),
-			)
 			r.staticServiceDiscovery = append(
 				r.staticServiceDiscovery,
-				fmt.Sprintf("%s=localhost:%d", discoveryEnvVar, r.BasePort+portCount),
+				fmt.Sprintf("%s=localhost:%d", discoveryEnvVar(sv.Name, i), r.BasePort+portCount),
 			)
 
 			portCount++
@@ -287,6 +284,10 @@ func (r *Runner) runNonBuilds(ctx context.Context) {
 	close(ready)
 
 	<-ctx.Done()
+}
+
+func discoveryEnvVar(name string, procCount int) string {
+	return normalizeByEnvVarRules(fmt.Sprintf("%s_%d_PORT", name, procCount))
 }
 
 // normalizeByEnvVarRules takes any name and rewrites it to be compliant with
@@ -316,11 +317,11 @@ func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, p
 	}
 	if portCount > -1 {
 		r.sdMu.Lock()
-		r.dynamicServiceDiscovery[procName] = port
+		r.dynamicServiceDiscovery[discoveryEnvVar(sv.Name, procCount)] = fmt.Sprint("localhost:", port)
 		r.sdMu.Unlock()
 		defer func() {
 			r.sdMu.Lock()
-			delete(r.dynamicServiceDiscovery, procName)
+			delete(r.dynamicServiceDiscovery, discoveryEnvVar(sv.Name, procCount))
 			r.sdMu.Unlock()
 		}()
 	}
