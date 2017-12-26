@@ -90,6 +90,19 @@ it can be used as means to facilitate the application start up.
 If a formation is given, it does not start any instance of the specified process
 type.
 
+## Environment variables available to processes
+
+Each process will have 3 environment variables available.
+
+`PS` is the name which the runner has christened the process.
+
+`PORT` is the IP port which the runner has indicated to that instance of a
+service to bind itself to.
+
+`DISCOVERY` is the HTTP service that returns a JSON describing each process
+type port. This assumes the process has honored the `PORT` variable and bound
+itself to the configured one.
+
 ## Installation
 `go get [-f -u] [-tags poll] cirello.io/runner`
 
