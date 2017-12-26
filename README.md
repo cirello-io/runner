@@ -17,7 +17,7 @@ the following content:
 	web: restart=fail waitfor=localhost:8888 ./server serve
 	web-a: group=web restart=always waitfor=localhost:8888 ./server serve alpha
 	web-b: group=web restart=always waitfor=localhost:8888 ./server serve bravo
-	db: restart=failure waitfor=localhost:8888 ./server db
+	db: restart=failure waitfor=web ./server db
 
 Special process type names:
 

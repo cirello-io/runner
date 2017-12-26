@@ -324,9 +324,9 @@ func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, p
 		isFirstCommand := idx == 0
 		isLastCommand := idx+1 == len(sv.Cmd)
 		if isFirstCommand && sv.WaitBefore != "" {
-			waitFor(ctx, pw, sv.WaitBefore)
+			r.waitFor(ctx, pw, sv.WaitBefore)
 		} else if isLastCommand && sv.WaitFor != "" {
-			waitFor(ctx, pw, sv.WaitFor)
+			r.waitFor(ctx, pw, sv.WaitFor)
 		}
 
 		if err := c.Run(); err != nil {
@@ -337,7 +337,7 @@ func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, p
 	return true
 }
 
-func waitFor(ctx context.Context, w io.Writer, target string) {
+func (r *Runner) waitFor(ctx context.Context, w io.Writer, target string) {
 	fmt.Fprintln(w, "waiting for", target)
 	defer fmt.Fprintln(w, "starting")
 	for {
@@ -345,6 +345,7 @@ func waitFor(ctx context.Context, w io.Writer, target string) {
 		case <-ctx.Done():
 			return
 		case <-time.After(250 * time.Millisecond):
+			target = r.resolveProcessTypeAddress(target)
 			c, err := net.Dial("tcp", target)
 			if err == nil {
 				c.Close()
@@ -352,6 +353,18 @@ func waitFor(ctx context.Context, w io.Writer, target string) {
 			}
 		}
 	}
+}
+
+func (r *Runner) resolveProcessTypeAddress(target string) string {
+	r.sdMu.Lock()
+	defer r.sdMu.Unlock()
+
+	for name, port := range r.serviceDiscovery {
+		if strings.HasPrefix(name, target) {
+			return fmt.Sprint("localhost:", port)
+		}
+	}
+	return target
 }
 
 func (r *Runner) prefixedPrinter(ctx context.Context, rdr io.Reader, name string) *bufio.Scanner {
