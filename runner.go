@@ -67,24 +67,26 @@ const (
 // defined, it will wait for network readiness on the defined target before
 // executing the first command. If WaitFor is defined, it will wait for network
 // readiness on the defined target before executing the last command. Process
-// types named as "build" are special, they are executed first in preparation
-// for all other process types, upon their completion the application
-// initialized.
+// types named with prefix "build" are special, they are executed first in
+// preparation for all other process types, upon their completion the
+// application initialized.
 type ProcessType struct {
-	// Name of the process type
+	// Name of the process type. If the name is prefixed with "build" it is
+	// executed before the others.
 	Name string `json:"name"`
 
-	// Cmd are the commands necessary to start the process type. Each
-	// command is executed on its own separated shell. No state is shared
-	// across commands.
+	// Cmd are the commands necessary to start the process type. They are
+	// executed in sequence, each its own separated shell. No state is
+	// shared across commands.
 	Cmd []string `json:"cmd"`
 
-	// WaitBefore is the network address that the process type waits to be
-	// available before initiating the process type start.
+	// WaitBefore is the network address or process type name that the
+	// process type waits to be available before initiating the process type
+	// start.
 	WaitBefore string `json:"waitbefore,omitempty"`
 
-	// WaitFor is the network address that the process type waits to be
-	// available before finalizing the start.
+	// WaitFor is the network address or process type name that the process
+	// type waits to be available before finalizing the start.
 	WaitFor string `json:"waitfor,omitempty"`
 
 	// Restart is the flag that forces the process type to restart. It means
