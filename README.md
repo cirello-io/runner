@@ -128,8 +128,6 @@ Non-compliant chars are replaced with an underscore (`_`) and name uniqueness is
 enforced.
 
 ## Installation
-`go get [-f -u] [-tags poll] cirello.io/runner`
-
-Use `-tags poll` if the fsnotify fails.
+`go get [-f -u] cirello.io/runner`
 
 http://godoc.org/cirello.io/runner
