@@ -101,6 +101,9 @@ type ProcessType struct {
 	// Group defines to which supervisor group this process type belongs.
 	// Group is useful to contain restart to a subset of the process types.
 	Group string
+
+	// Sticky processes are not interrupted by filesystem events.
+	Sticky bool
 }
 
 // Runner defines how this application should be started.
@@ -206,7 +209,12 @@ func (r *Runner) startProcesses(ctx context.Context, fn string) {
 		return
 	}
 
-	r.runNonBuilds(ctx, fn)
+	select {
+	case <-ctx.Done():
+		return
+	default:
+		r.runNonBuilds(ctx, fn)
+	}
 }
 
 func (r *Runner) runBuilds(ctx context.Context, fn string) bool {
@@ -222,7 +230,12 @@ func (r *Runner) runBuilds(ctx context.Context, fn string) bool {
 		wgBuild.Add(1)
 		go func(sv *ProcessType) {
 			defer wgBuild.Done()
-			if !r.startProcess(ctx, sv, -1, -1, fn) {
+			c := ctx
+			if sv.Sticky {
+				log.Println(sv.Name, "is sticky")
+				c = context.Background()
+			}
+			if !r.startProcess(c, sv, -1, -1, fn) {
 				mu.Lock()
 				ok = false
 				mu.Unlock()

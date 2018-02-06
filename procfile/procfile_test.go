@@ -31,7 +31,7 @@ observe: *.go *.js
 ignore: /vendor
 build-server: make server
 web: group=service restart=always waitfor=localhost:8888 ./server serve
-web2: group=service restart=fail waitfor=localhost:8888 ./server serve
+web2: sticky=1 group=service restart=fail waitfor=localhost:8888 ./server serve
 formation: web=1 web2=2
 malformed-line`
 
@@ -70,6 +70,7 @@ malformed-line`
 			WaitFor:    "localhost:8888",
 			Restart:    runner.OnFailure,
 			Group:      "service",
+			Sticky:     true,
 		},
 	}
 	expected.Formation = map[string]int{

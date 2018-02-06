@@ -53,6 +53,9 @@
 // "restart" paramater is not set to "always" or "fail", the affected process
 // types will halt and not restart.
 //
+// - sticky (in build process types): a sticky build is not interrupted when
+// file changes are detected.
+//
 // Although internally runner.Runner supports waitbefore and multi-command
 // processes, for simplicity of interface these features have been disabled in
 // Procfile parser.
@@ -122,6 +125,14 @@ func Parse(r io.Reader) (runner.Runner, error) {
 			for _, part := range parts {
 				if strings.HasPrefix(part, "waitfor=") {
 					proc.WaitFor = strings.TrimPrefix(part, "waitfor=")
+					continue
+				}
+				if strings.HasPrefix(part, "sticky=") {
+					sticky, err := strconv.ParseBool(strings.TrimPrefix(part, "sticky="))
+					if err != nil {
+						return rnr, err
+					}
+					proc.Sticky = sticky
 					continue
 				}
 				if strings.HasPrefix(part, "restart=") {
