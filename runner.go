@@ -185,29 +185,31 @@ func (r *Runner) Start(ctx context.Context) error {
 		return err
 	}
 
+	fileName := ""
 	for {
 		c, cancel := context.WithCancel(ctx)
-		go r.startProcesses(c)
+		go r.startProcesses(c, fileName)
 		select {
 		case <-ctx.Done():
 			cancel()
 			return nil
-		case <-updates:
+		case fn := <-updates:
+			fileName = fn
 			cancel()
 		}
 	}
 }
 
-func (r *Runner) startProcesses(ctx context.Context) {
-	if ok := r.runBuilds(ctx); !ok {
+func (r *Runner) startProcesses(ctx context.Context, fn string) {
+	if ok := r.runBuilds(ctx, fn); !ok {
 		log.Println("error during build, halted")
 		return
 	}
 
-	r.runNonBuilds(ctx)
+	r.runNonBuilds(ctx, fn)
 }
 
-func (r *Runner) runBuilds(ctx context.Context) bool {
+func (r *Runner) runBuilds(ctx context.Context, fn string) bool {
 	var (
 		wgBuild sync.WaitGroup
 		mu      sync.Mutex
@@ -220,7 +222,7 @@ func (r *Runner) runBuilds(ctx context.Context) bool {
 		wgBuild.Add(1)
 		go func(sv *ProcessType) {
 			defer wgBuild.Done()
-			if !r.startProcess(ctx, sv, -1, -1) {
+			if !r.startProcess(ctx, sv, -1, -1, fn) {
 				mu.Lock()
 				ok = false
 				mu.Unlock()
@@ -231,7 +233,7 @@ func (r *Runner) runBuilds(ctx context.Context) bool {
 	return ok
 }
 
-func (r *Runner) runNonBuilds(ctx context.Context) {
+func (r *Runner) runNonBuilds(ctx context.Context, changedFileName string) {
 	ctx = supervisor.WithContext(ctx)
 	groups := make(map[string]context.Context)
 	ready := make(chan struct{})
@@ -269,7 +271,7 @@ func (r *Runner) runNonBuilds(ctx context.Context) {
 			}
 			supervisor.Add(procCtx, func(ctx context.Context) {
 				<-ready
-				ok := r.startProcess(ctx, sv, i, pc)
+				ok := r.startProcess(ctx, sv, i, pc, changedFileName)
 				if !ok && sv.Restart == OnFailure {
 					panic("restarting on failure")
 				}
@@ -310,7 +312,7 @@ func normalizeByEnvVarRules(name string) string {
 	return strings.ToUpper(buf.String())
 }
 
-func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, portCount int) bool {
+func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, portCount int, changedFileName string) bool {
 	pr, pw := io.Pipe()
 	procName := sv.Name
 	port := r.BasePort + portCount
@@ -354,6 +356,8 @@ func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, p
 			c.Env = append(c.Env, fmt.Sprintf("DISCOVERY=%v", r.ServiceDiscoveryAddr))
 			c.Env = append(c.Env, r.staticServiceDiscovery...)
 		}
+
+		c.Env = append(c.Env, fmt.Sprintf("CHANGED_FILENAME=%v", changedFileName))
 
 		stderrPipe, err := c.StderrPipe()
 		if err != nil {

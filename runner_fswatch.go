@@ -22,12 +22,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/fsnotify/fsnotify"
 )
 
-func (s *Runner) monitorWorkDir(ctx context.Context) (<-chan struct{}, error) {
+func (s *Runner) monitorWorkDir(ctx context.Context) (<-chan string, error) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
@@ -66,13 +65,12 @@ func (s *Runner) monitorWorkDir(ctx context.Context) (<-chan struct{}, error) {
 	}
 	log.Println("monitoring", len(memo), "directories")
 
-	changeds := s.consumeFsnotifyEvents(ctx, watcher)
-	triggereds := s.triggerRestarts(ctx, changeds)
+	triggereds := s.consumeFsnotifyEvents(ctx, watcher)
 	return triggereds, nil
 }
 
-func (s *Runner) consumeFsnotifyEvents(ctx context.Context, watcher *fsnotify.Watcher) chan struct{} {
-	changeds := make(chan struct{})
+func (s *Runner) consumeFsnotifyEvents(ctx context.Context, watcher *fsnotify.Watcher) chan string {
+	triggereds := make(chan string)
 
 	go func() {
 		defer watcher.Close()
@@ -86,11 +84,7 @@ func (s *Runner) consumeFsnotifyEvents(ctx context.Context, watcher *fsnotify.Wa
 				}
 				for _, p := range s.Observables {
 					if match(p, event.Name) {
-						select {
-						case changeds <- struct{}{}:
-						default:
-						}
-						break
+						triggereds <- event.Name
 					}
 				}
 			case err := <-watcher.Errors:
@@ -98,28 +92,6 @@ func (s *Runner) consumeFsnotifyEvents(ctx context.Context, watcher *fsnotify.Wa
 			}
 		}
 	}()
-	return changeds
-}
 
-func (s *Runner) triggerRestarts(ctx context.Context, changeds chan struct{}) chan struct{} {
-	triggereds := make(chan struct{})
-	go func() {
-		lastRun := time.Now()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-changeds:
-				triggereds <- struct{}{}
-			}
-
-			const coolDownPeriod = 10 * time.Second
-			if sinceLastRun := time.Since(lastRun); sinceLastRun < coolDownPeriod {
-				log.Println("too active, pausing restarts for", coolDownPeriod-sinceLastRun)
-				time.Sleep(coolDownPeriod - sinceLastRun)
-			}
-			lastRun = time.Now()
-		}
-	}()
 	return triggereds
 }
