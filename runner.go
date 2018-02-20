@@ -149,6 +149,9 @@ type Runner struct {
 	sdMu                    sync.Mutex
 	dynamicServiceDiscovery map[string]string
 	staticServiceDiscovery  []string
+
+	// Ensure that only one build takes place each time.
+	buildSemaphore sync.Mutex
 }
 
 // New creates a new runner ready to use.
@@ -218,6 +221,8 @@ func (r *Runner) startProcesses(ctx context.Context, fn string) {
 }
 
 func (r *Runner) runBuilds(ctx context.Context, fn string) bool {
+	r.buildSemaphore.Lock()
+	defer r.buildSemaphore.Unlock()
 	var (
 		wgBuild sync.WaitGroup
 		mu      sync.Mutex
