@@ -149,9 +149,6 @@ type Runner struct {
 	sdMu                    sync.Mutex
 	dynamicServiceDiscovery map[string]string
 	staticServiceDiscovery  []string
-
-	// Ensure that only one build takes place each time.
-	buildSemaphore sync.Mutex
 }
 
 // New creates a new runner ready to use.
@@ -191,38 +188,34 @@ func (r *Runner) Start(ctx context.Context) error {
 		return err
 	}
 
-	fileName := ""
+	run := make(chan string)
+	go func() { run <- "" }()
+	c, cancel := context.WithCancel(ctx)
 	for {
-		c, cancel := context.WithCancel(ctx)
-		go r.startProcesses(c, fileName)
 		select {
 		case <-ctx.Done():
 			cancel()
 			return nil
 		case fn := <-updates:
-			fileName = fn
-			cancel()
+			if ok := r.runBuilds(c, fn); !ok {
+				log.Println("error during build, halted")
+				continue
+			}
+
+			if l := len(updates); l == 0 {
+				cancel()
+				go func() { run <- fn }()
+			} else {
+				log.Println("builds pending before application start:", l)
+			}
+		case fn := <-run:
+			c, cancel = context.WithCancel(ctx)
+			go r.runNonBuilds(c, fn)
 		}
 	}
 }
 
-func (r *Runner) startProcesses(ctx context.Context, fn string) {
-	if ok := r.runBuilds(ctx, fn); !ok {
-		log.Println("error during build, halted")
-		return
-	}
-
-	select {
-	case <-ctx.Done():
-		return
-	default:
-		r.runNonBuilds(ctx, fn)
-	}
-}
-
 func (r *Runner) runBuilds(ctx context.Context, fn string) bool {
-	r.buildSemaphore.Lock()
-	defer r.buildSemaphore.Unlock()
 	var (
 		wgBuild sync.WaitGroup
 		mu      sync.Mutex

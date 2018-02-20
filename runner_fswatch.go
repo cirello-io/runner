@@ -70,7 +70,7 @@ func (s *Runner) monitorWorkDir(ctx context.Context) (<-chan string, error) {
 }
 
 func (s *Runner) consumeFsnotifyEvents(ctx context.Context, watcher *fsnotify.Watcher) chan string {
-	triggereds := make(chan string)
+	triggereds := make(chan string, 1024)
 
 	go func() {
 		defer watcher.Close()
