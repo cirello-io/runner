@@ -49,6 +49,8 @@ func ParseRestartMode(m string) RestartMode {
 		return Always
 	case "fail", "failure", "onfail", "onfailure", "on-failure", "on_failure":
 		return OnFailure
+	case "temporary", "start-once", "temp", "tmp":
+		return Temporary
 	default:
 		return Never
 	}
@@ -58,6 +60,7 @@ func ParseRestartMode(m string) RestartMode {
 const (
 	Always    RestartMode = "yes"
 	OnFailure RestartMode = "fail"
+	Temporary RestartMode = "temporary"
 	Never     RestartMode = ""
 )
 
@@ -94,8 +97,10 @@ type ProcessType struct {
 	// to build steps.
 	//
 	// - yes|always: alway restart the process type.
-	// - no|<empty>: never restart the process type.
+	// - no|<empty>: restart the process type on rebuild.
 	// - on-failure|fail: restart the process type if any of the steps fail.
+	// - temporary|tmp: start the process once and skip restart on rebuild.
+	// Temporary processes do not show up in the discovery service.
 	Restart RestartMode `json:"restart,omitempty"`
 
 	// Group defines to which supervisor group this process type belongs.
@@ -149,6 +154,7 @@ type Runner struct {
 	sdMu                    sync.Mutex
 	dynamicServiceDiscovery map[string]string
 	staticServiceDiscovery  []string
+	currentGeneration       int
 }
 
 // New creates a new runner ready to use.
@@ -160,7 +166,7 @@ func New() Runner {
 }
 
 // Start initiates the application.
-func (r *Runner) Start(ctx context.Context) error {
+func (r *Runner) Start(rootCtx context.Context) error {
 	nameDict := make(map[string]struct{})
 	for _, proc := range r.Processes {
 		name := proc.Name
@@ -181,19 +187,19 @@ func (r *Runner) Start(ctx context.Context) error {
 	}
 	r.longestProcessTypeName++
 
-	go r.serveServiceDiscovery(ctx)
+	go r.serveServiceDiscovery(rootCtx)
 
-	updates, err := r.monitorWorkDir(ctx)
+	updates, err := r.monitorWorkDir(rootCtx)
 	if err != nil {
 		return err
 	}
 
 	run := make(chan string)
 	go func() { run <- "" }()
-	c, cancel := context.WithCancel(ctx)
+	c, cancel := context.WithCancel(rootCtx)
 	for {
 		select {
-		case <-ctx.Done():
+		case <-rootCtx.Done():
 			cancel()
 			return nil
 		case fn := <-updates:
@@ -209,8 +215,8 @@ func (r *Runner) Start(ctx context.Context) error {
 				log.Println("builds pending before application start:", l)
 			}
 		case fn := <-run:
-			c, cancel = context.WithCancel(ctx)
-			go r.runNonBuilds(c, fn)
+			c, cancel = context.WithCancel(rootCtx)
+			go r.runNonBuilds(rootCtx, c, fn)
 		}
 	}
 }
@@ -244,7 +250,7 @@ func (r *Runner) runBuilds(ctx context.Context, fn string) bool {
 	return ok
 }
 
-func (r *Runner) runNonBuilds(ctx context.Context, changedFileName string) {
+func (r *Runner) runNonBuilds(rootCtx, ctx context.Context, changedFileName string) {
 	ctx = supervisor.WithContext(ctx)
 	groups := make(map[string]context.Context)
 	ready := make(chan struct{})
@@ -273,29 +279,40 @@ func (r *Runner) runNonBuilds(ctx context.Context, changedFileName string) {
 		for i := 0; i < maxProc; i++ {
 			sv, i, pc := sv, i, portCount
 
-			opt := supervisor.Temporary
-			switch sv.Restart {
-			case Always:
-				opt = supervisor.Permanent
-			case OnFailure:
-				opt = supervisor.Transient
-			}
-			supervisor.Add(procCtx, func(ctx context.Context) {
-				<-ready
-				ok := r.startProcess(ctx, sv, i, pc, changedFileName)
-				if !ok && sv.Restart == OnFailure {
-					panic("restarting on failure")
+			if sv.Restart == Temporary && r.currentGeneration == 0 {
+				temporarySvcCtx := supervisor.WithContext(rootCtx)
+				supervisor.Add(temporarySvcCtx, func(ctx context.Context) {
+					<-ready
+					r.startProcess(ctx, sv, i, pc, changedFileName)
+				}, supervisor.Temporary)
+				portCount++
+			} else if sv.Restart == Temporary && r.currentGeneration != 0 {
+				portCount++
+				continue
+			} else {
+				opt := supervisor.Temporary
+				switch sv.Restart {
+				case Always:
+					opt = supervisor.Permanent
+				case OnFailure:
+					opt = supervisor.Transient
 				}
-			}, opt)
-
-			r.staticServiceDiscovery = append(
-				r.staticServiceDiscovery,
-				fmt.Sprintf("%s=localhost:%d", discoveryEnvVar(sv.Name, i), r.BasePort+portCount),
-			)
-
-			portCount++
+				supervisor.Add(procCtx, func(ctx context.Context) {
+					<-ready
+					ok := r.startProcess(ctx, sv, i, pc, changedFileName)
+					if !ok && sv.Restart == OnFailure {
+						panic("restarting on failure")
+					}
+				}, opt)
+				r.staticServiceDiscovery = append(
+					r.staticServiceDiscovery,
+					fmt.Sprintf("%s=localhost:%d", discoveryEnvVar(sv.Name, i), r.BasePort+portCount),
+				)
+				portCount++
+			}
 		}
 	}
+	r.currentGeneration++
 	close(ready)
 
 	<-ctx.Done()
