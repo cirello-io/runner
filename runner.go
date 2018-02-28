@@ -19,6 +19,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/sha1"
 	"errors"
 	"fmt"
 	"io"
@@ -196,6 +197,7 @@ func (r *Runner) Start(rootCtx context.Context) error {
 
 	run := make(chan string)
 	go func() { run <- "" }()
+	fileHashes := make(map[string]string) // fn to hash
 	c, cancel := context.WithCancel(rootCtx)
 	for {
 		select {
@@ -203,6 +205,14 @@ func (r *Runner) Start(rootCtx context.Context) error {
 			cancel()
 			return nil
 		case fn := <-updates:
+			newHash := calcFileHash(fn)
+			oldHash, ok := fileHashes[fn]
+			if ok && newHash == oldHash {
+				log.Println(fn, "didn't change, skipping")
+				continue
+			}
+			fileHashes[fn] = newHash
+
 			if ok := r.runBuilds(c, fn); !ok {
 				log.Println("error during build, halted")
 				continue
@@ -219,6 +229,21 @@ func (r *Runner) Start(rootCtx context.Context) error {
 			go r.runNonBuilds(rootCtx, c, fn)
 		}
 	}
+}
+
+func calcFileHash(fn string) string {
+	f, err := os.Open(fn)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+
+	h := sha1.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return ""
+	}
+
+	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
 func (r *Runner) runBuilds(ctx context.Context, fn string) bool {
