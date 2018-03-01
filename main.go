@@ -85,6 +85,7 @@ var (
 	formation     = flag.String("formation", "", "formation allows to start more than one instance of a process type, format: `procTypeA=# procTypeB=# ... procTypeN=#`")
 	envFn         = flag.String("env", ".env", "environment `file` to be loaded for all processes.")
 	skipProcs     = flag.String("skip", "", "does not run some of the process types, format: `procTypeA procTypeB procTypeN`")
+	onlyProcs     = flag.String("only", "", "only runs some of the process types, format: `procTypeA procTypeB procTypeN`")
 )
 
 func init() {
@@ -173,7 +174,11 @@ func main() {
 		}
 	}
 
-	s.Processes = filterSkippedProcs(*skipProcs, s.Processes)
+	if *skipProcs != "" {
+		s.Processes = filterSkippedProcs(*skipProcs, s.Processes)
+	} else if *onlyProcs != "" {
+		s.Processes = filterOnlyProcs(*onlyProcs, s.Processes)
+	}
 	s.ServiceDiscoveryAddr = *discoveryAddr
 	if err := s.Start(ctx); err != nil {
 		log.Fatalln("cannot serve:", err)
@@ -191,6 +196,20 @@ procTypes:
 			}
 		}
 		newProcs = append(newProcs, procType)
+	}
+	return newProcs
+}
+
+func filterOnlyProcs(only string, processes []*runner.ProcessType) []*runner.ProcessType {
+	onlyProcs, newProcs := strings.Split(only, " "), []*runner.ProcessType{}
+procTypes:
+	for _, procType := range processes {
+		for _, only := range onlyProcs {
+			if procType.Name == only {
+				newProcs = append(newProcs, procType)
+				continue procTypes
+			}
+		}
 	}
 	return newProcs
 }
