@@ -66,6 +66,7 @@ func (s *Runner) monitorWorkDir(ctx context.Context) (<-chan string, error) {
 	log.Println("monitoring", len(memo), "directories")
 
 	triggereds := s.consumeFsnotifyEvents(ctx, watcher)
+	go func() { triggereds <- "" }()
 	return triggereds, nil
 }
 

@@ -196,7 +196,6 @@ func (r *Runner) Start(rootCtx context.Context) error {
 	}
 
 	run := make(chan string)
-	go func() { run <- "" }()
 	fileHashes := make(map[string]string) // fn to hash
 	c, cancel := context.WithCancel(rootCtx)
 	for {
