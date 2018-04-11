@@ -389,6 +389,7 @@ func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, p
 
 	for idx, cmd := range sv.Cmd {
 		fmt.Fprintln(pw, "running", `"`+cmd+`"`)
+		defer fmt.Fprintln(pw, "finished", `"`+cmd+`"`)
 		if portCount > -1 {
 			fmt.Fprintln(pw, "listening on", port)
 		}
