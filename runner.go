@@ -207,7 +207,7 @@ func (r *Runner) Start(rootCtx context.Context) error {
 		case fn := <-updates:
 			newHash := calcFileHash(fn)
 			oldHash, ok := fileHashes[fn]
-			if ok && newHash == oldHash {
+			if ok && newHash == oldHash && len(updates) > 0 {
 				log.Println(fn, "didn't change, skipping")
 				continue
 			}
