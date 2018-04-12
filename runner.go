@@ -255,9 +255,13 @@ func (r *Runner) runBuilds(ctx context.Context, fn string) bool {
 		if !strings.HasPrefix(sv.Name, "build") {
 			continue
 		}
+		r.setServiceDiscovery(normalizeByEnvVarRules(sv.Name), "building")
 		wgBuild.Add(1)
 		go func(sv *ProcessType) {
 			defer wgBuild.Done()
+			defer func() {
+				r.setServiceDiscovery(normalizeByEnvVarRules(sv.Name), "done")
+			}()
 			c := ctx
 			if sv.Sticky {
 				log.Println(sv.Name, "is sticky")
@@ -372,14 +376,7 @@ func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, p
 		procName = fmt.Sprintf("%v.%v", procName, procCount)
 	}
 	if portCount > -1 {
-		r.sdMu.Lock()
-		r.dynamicServiceDiscovery[discoveryEnvVar(sv.Name, procCount)] = fmt.Sprint("localhost:", port)
-		r.sdMu.Unlock()
-		defer func() {
-			r.sdMu.Lock()
-			delete(r.dynamicServiceDiscovery, discoveryEnvVar(sv.Name, procCount))
-			r.sdMu.Unlock()
-		}()
+		r.setServiceDiscovery(discoveryEnvVar(sv.Name, procCount), fmt.Sprint("localhost:", port))
 	}
 	r.prefixedPrinter(ctx, pr, procName)
 
@@ -493,4 +490,10 @@ func (r *Runner) prefixedPrinter(ctx context.Context, rdr io.Reader, name string
 		}
 	}()
 	return scanner
+}
+
+func (r *Runner) setServiceDiscovery(svc, state string) {
+	r.sdMu.Lock()
+	r.dynamicServiceDiscovery[svc] = state
+	r.sdMu.Unlock()
 }
