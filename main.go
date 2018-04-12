@@ -69,6 +69,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"cirello.io/runner/procfile"
 	"cirello.io/runner/runner"
@@ -100,6 +101,54 @@ func init() {
 func main() {
 	log.SetFlags(0)
 	log.SetPrefix("runner: ")
+	origStdout := os.Stdout
+
+	var (
+		filterPatternMu sync.RWMutex
+		filterPattern   string
+	)
+	go func() {
+		scanner := bufio.NewScanner(os.Stdin)
+		for scanner.Scan() {
+			text := scanner.Text()
+			filterPatternMu.Lock()
+			filterPattern = text
+			filterPatternMu.Unlock()
+			if text != "" {
+				log.Println("filtering with:", scanner.Text())
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			log.Println("reading standard output:", err)
+		}
+	}()
+	go func() {
+
+		r, w, _ := os.Pipe()
+		os.Stdout = w
+		scanner := bufio.NewScanner(r)
+		for scanner.Scan() {
+			filterPatternMu.RLock()
+			p := filterPattern
+			filterPatternMu.RUnlock()
+			text := scanner.Text()
+			if p == "" {
+				fmt.Fprintln(origStdout, text)
+				continue
+			}
+
+			words := strings.Fields(p)
+			for _, w := range words {
+				if strings.Contains(text, w) {
+					fmt.Fprintln(origStdout, text)
+					break
+				}
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			log.Println("reading standard output:", err)
+		}
+	}()
 
 	fn := DefaultProcfile
 	if argFn := flag.Arg(0); argFn != "" {
