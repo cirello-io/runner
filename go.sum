@@ -1,7 +1,0 @@
-cirello.io/supervisor v0.0.0-20180708022006-5def39bc3488 h1:FkkvoVj2316J2TL1vA6KN1PhH/+VC4W0rht8cb+jwqE=
-cirello.io/supervisor v0.0.0-20180708022006-5def39bc3488/go.mod h1:8xGi8iMZIdwx/Q9uma0kj2vHX/OEs/duZWzY3ImYoNs=
-cirello.io/supervisor/easy v0.0.0-20180708022006-5def39bc3488/go.mod h1:G7mAYYxgmS0lVkHyy2hEOLQCFB0DlQFTMLWggykrydY=
-github.com/fsnotify/fsnotify v1.4.7 h1:IXs+QLmnXW2CcXuY+8Mzv/fWEsPGWxqefPtCP5CnV9I=
-github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
-golang.org/x/sys v0.0.0-20180224232135-f6cff0780e54 h1:4qAtdeqGYyXU2CfUvLomEFw0cl5IxNxmEhXL52ODpiU=
-golang.org/x/sys v0.0.0-20180224232135-f6cff0780e54/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
