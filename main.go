@@ -55,6 +55,9 @@ types will halt and not restart.
 
 - sticky (in build process types): a sticky build is not interrupted when file
 changes are detected.
+
+- optional (in process types): does not start this process unless explicit told
+so.
 */
 package main // import "cirello.io/runner"
 
@@ -87,6 +90,7 @@ var (
 	envFn         = flag.String("env", ".env", "environment `file` to be loaded for all processes.")
 	skipProcs     = flag.String("skip", "", "does not run some of the process types, format: `procTypeA procTypeB procTypeN`")
 	onlyProcs     = flag.String("only", "", "only runs some of the process types, format: `procTypeA procTypeB procTypeN`")
+	optionalProcs = flag.String("optional", "", "forcefully runs some of the process types, format: `procTypeA procTypeB procTypeN`")
 )
 
 func init() {
@@ -228,10 +232,45 @@ func main() {
 	} else if *onlyProcs != "" {
 		s.Processes = filterOnlyProcs(*onlyProcs, s.Processes)
 	}
+	if *optionalProcs != "" {
+		s.Processes = keepOptionalProcs(*optionalProcs, s.Processes)
+	} else {
+		s.Processes = filterOptionalProcs(s.Processes)
+	}
 	s.ServiceDiscoveryAddr = *discoveryAddr
 	if err := s.Start(ctx); err != nil {
 		log.Fatalln("cannot serve:", err)
 	}
+}
+
+func keepOptionalProcs(optionals string, processes []*runner.ProcessType) []*runner.ProcessType {
+	optionalProcs, newProcs := strings.Split(optionals, " "), []*runner.ProcessType{}
+procTypes:
+	for _, procType := range processes {
+		if !procType.Optional {
+			newProcs = append(newProcs, procType)
+			continue
+		}
+		for _, optional := range optionalProcs {
+			if procType.Name == optional {
+				newProcs = append(newProcs, procType)
+				continue procTypes
+			}
+		}
+	}
+	return newProcs
+}
+
+func filterOptionalProcs(processes []*runner.ProcessType) []*runner.ProcessType {
+	newProcs := []*runner.ProcessType{}
+procTypes:
+	for _, procType := range processes {
+		if procType.Optional {
+			continue procTypes
+		}
+		newProcs = append(newProcs, procType)
+	}
+	return newProcs
 }
 
 func filterSkippedProcs(skip string, processes []*runner.ProcessType) []*runner.ProcessType {

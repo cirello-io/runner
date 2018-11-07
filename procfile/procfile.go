@@ -56,6 +56,9 @@
 // - sticky (in build process types): a sticky build is not interrupted when
 // file changes are detected.
 //
+// - optional (in process types): does not start this process unless explicit
+// told so.
+//
 // Although internally runner.Runner supports waitbefore and multi-command
 // processes, for simplicity of interface these features have been disabled in
 // Procfile parser.
@@ -142,6 +145,14 @@ func Parse(r io.Reader) (runner.Runner, error) {
 				}
 				if strings.HasPrefix(part, "group=") {
 					proc.Group = strings.TrimPrefix(part, "group=")
+					continue
+				}
+				if strings.HasPrefix(part, "optional=") {
+					optional, err := strconv.ParseBool(strings.TrimPrefix(part, "optional="))
+					if err != nil {
+						return rnr, err
+					}
+					proc.Optional = optional
 					continue
 				}
 				command = append(command, part)

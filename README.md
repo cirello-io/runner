@@ -48,6 +48,8 @@ types will halt and not restart.
 - sticky (in build process types): a sticky build is not interrupted when file
 changes are detected.
 
+- optional (in process types): does not start this process unless explicit told
+so.
 
 ## CLI parameters
 

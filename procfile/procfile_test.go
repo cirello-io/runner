@@ -32,7 +32,8 @@ ignore: /vendor
 build-server: make server
 web: group=service restart=always waitfor=localhost:8888 ./server serve
 web2: sticky=1 group=service restart=fail waitfor=localhost:8888 ./server serve
-formation: web=1 web2=2
+web3: sticky=1 group=service restart=fail optional=true waitfor=localhost:8888 ./server serve
+formation: web=1 web2=2 web3=1
 malformed-line`
 
 	got, err := Parse(strings.NewReader(example))
@@ -72,10 +73,23 @@ malformed-line`
 			Group:      "service",
 			Sticky:     true,
 		},
+		{
+			Name: "web3",
+			Cmd: []string{
+				"./server serve",
+			},
+			WaitBefore: "",
+			WaitFor:    "localhost:8888",
+			Restart:    runner.OnFailure,
+			Group:      "service",
+			Sticky:     true,
+			Optional:   true,
+		},
 	}
 	expected.Formation = map[string]int{
 		"web":  1,
 		"web2": 2,
+		"web3": 1,
 	}
 
 	if !reflect.DeepEqual(&got, &expected) {
