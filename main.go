@@ -253,6 +253,7 @@ procTypes:
 		}
 		for _, optional := range optionalProcs {
 			if procType.Name == optional {
+				fmt.Println("enabling", optional)
 				newProcs = append(newProcs, procType)
 				continue procTypes
 			}
