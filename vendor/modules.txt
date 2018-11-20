@@ -1,4 +1,4 @@
-# cirello.io/oversight v0.0.0-20181120113824-5117ebf05c67
+# cirello.io/oversight v0.0.0-20181120130225-86908917ecdd
 cirello.io/oversight/easy
 cirello.io/oversight
 # github.com/fsnotify/fsnotify v1.4.7
