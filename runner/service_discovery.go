@@ -20,8 +20,9 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 
-	supervisor "cirello.io/supervisor/easy"
+	oversight "cirello.io/oversight/easy"
 )
 
 func (r *Runner) serveServiceDiscovery(ctx context.Context) error {
@@ -54,11 +55,12 @@ func (r *Runner) serveServiceDiscovery(ctx context.Context) error {
 			Addr:    ":0",
 			Handler: mux,
 		}
-		ctx = supervisor.WithContext(ctx, supervisor.WithLogger(log.Println))
-		supervisor.Add(ctx, func(context.Context) {
+		ctx = oversight.WithContext(ctx, oversight.WithLogger(log.New(os.Stderr, "", log.LstdFlags)))
+		oversight.Add(ctx, func(context.Context) error {
 			if err := server.Serve(l); err != nil {
 				log.Println("service discovery server failed:", err)
 			}
+			return err
 		})
 		<-ctx.Done()
 		server.Shutdown(context.Background())

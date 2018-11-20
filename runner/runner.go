@@ -31,7 +31,7 @@ import (
 	"sync"
 	"time"
 
-	supervisor "cirello.io/supervisor/easy"
+	oversight "cirello.io/oversight/easy"
 )
 
 // ErrNonUniqueProcessTypeName is returned when starting the runner, it detects
@@ -283,7 +283,7 @@ func (r *Runner) runBuilds(ctx context.Context, fn string) bool {
 }
 
 func (r *Runner) runNonBuilds(rootCtx, ctx context.Context, changedFileName string) {
-	ctx = supervisor.WithContext(ctx)
+	ctx = oversight.WithContext(ctx)
 	groups := make(map[string]context.Context)
 	ready := make(chan struct{})
 
@@ -301,7 +301,7 @@ func (r *Runner) runNonBuilds(rootCtx, ctx context.Context, changedFileName stri
 		if sv.Group != "" {
 			groupCtx, ok := groups[sv.Group]
 			if !ok {
-				groupCtx = supervisor.WithContext(ctx)
+				groupCtx = oversight.WithContext(ctx)
 				groups[sv.Group] = groupCtx
 			}
 			procCtx = groupCtx
@@ -312,30 +312,32 @@ func (r *Runner) runNonBuilds(rootCtx, ctx context.Context, changedFileName stri
 			sv, i, pc := sv, i, portCount
 
 			if sv.Restart == Temporary && r.currentGeneration == 0 {
-				temporarySvcCtx := supervisor.WithContext(rootCtx)
-				supervisor.Add(temporarySvcCtx, func(ctx context.Context) {
+				temporarySvcCtx := oversight.WithContext(rootCtx)
+				oversight.Add(temporarySvcCtx, func(ctx context.Context) error {
 					<-ready
 					r.startProcess(ctx, sv, i, pc, changedFileName)
-				}, supervisor.Temporary)
+					return nil
+				}, oversight.RestartWith(oversight.Temporary()))
 				portCount++
 			} else if sv.Restart == Temporary && r.currentGeneration != 0 {
 				portCount++
 				continue
 			} else {
-				opt := supervisor.Temporary
+				restart := oversight.Temporary()
 				switch sv.Restart {
 				case Always:
-					opt = supervisor.Permanent
+					restart = oversight.Permanent()
 				case OnFailure:
-					opt = supervisor.Transient
+					restart = oversight.Transient()
 				}
-				supervisor.Add(procCtx, func(ctx context.Context) {
+				oversight.Add(procCtx, func(ctx context.Context) error {
 					<-ready
 					ok := r.startProcess(ctx, sv, i, pc, changedFileName)
 					if !ok && sv.Restart == OnFailure {
-						panic("restarting on failure")
+						return errors.New("restarting on failure")
 					}
-				}, opt)
+					return nil
+				}, oversight.RestartWith(restart))
 				r.staticServiceDiscovery = append(
 					r.staticServiceDiscovery,
 					fmt.Sprintf("%s=localhost:%d", discoveryEnvVar(sv.Name, i), r.BasePort+portCount),
