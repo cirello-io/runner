@@ -131,6 +131,7 @@ func main() {
 		r, w, _ := os.Pipe()
 		os.Stdout = w
 		scanner := bufio.NewScanner(r)
+		scanner.Buffer(make([]byte, 2097152), 262144)
 		for scanner.Scan() {
 			filterPatternMu.RLock()
 			p := filterPattern
