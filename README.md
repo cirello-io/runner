@@ -135,6 +135,6 @@ Non-compliant chars are replaced with an underscore (`_`) and name uniqueness is
 enforced.
 
 ## Installation
-`go get [-f -u] cirello.io/runner`
+`go get [-u -f] cirello.io/runner`
 
 http://godoc.org/cirello.io/runner
