@@ -1,7 +1,7 @@
-# cirello.io/oversight v0.0.0-20190102193711-99178ea56bae
+# cirello.io/oversight v0.0.0-20190115164804-205cd8421fad
 cirello.io/oversight/easy
 cirello.io/oversight
 # github.com/fsnotify/fsnotify v1.4.7
 github.com/fsnotify/fsnotify
-# golang.org/x/sys v0.0.0-20181119195503-ec83556a53fe
+# golang.org/x/sys v0.0.0-20190115152922-a457fd036447
 golang.org/x/sys/unix
