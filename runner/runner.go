@@ -52,6 +52,8 @@ func ParseRestartMode(m string) RestartMode {
 		return OnFailure
 	case "temporary", "start-once", "temp", "tmp":
 		return Temporary
+	case "loop":
+		return Loop
 	default:
 		return Never
 	}
@@ -62,6 +64,7 @@ const (
 	Always    RestartMode = "yes"
 	OnFailure RestartMode = "fail"
 	Temporary RestartMode = "temporary"
+	Loop      RestartMode = "loop"
 	Never     RestartMode = ""
 )
 
@@ -311,7 +314,15 @@ func (r *Runner) runNonBuilds(rootCtx, ctx context.Context, changedFileName stri
 		for i := 0; i < maxProc; i++ {
 			sv, i, pc := sv, i, portCount
 
-			if sv.Restart == Temporary && r.currentGeneration == 0 {
+			if sv.Restart == Loop && r.currentGeneration == 0 {
+				loopSvcCtx := oversight.WithContext(rootCtx)
+				oversight.Add(loopSvcCtx, func(ctx context.Context) error {
+					<-ready
+					r.startProcess(ctx, sv, i, pc, changedFileName)
+					return nil
+				}, oversight.RestartWith(oversight.Permanent()))
+				portCount++
+			} else if sv.Restart == Temporary && r.currentGeneration == 0 {
 				temporarySvcCtx := oversight.WithContext(rootCtx)
 				oversight.Add(temporarySvcCtx, func(ctx context.Context) error {
 					<-ready
