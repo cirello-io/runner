@@ -58,7 +58,7 @@ types will halt and not restart.
 changes are detected.
 
 - optional (in process types): does not start this process unless explicit told
-so.
+so. The process type must be part of a group.
 */
 package main // import "cirello.io/runner"
 
@@ -265,11 +265,14 @@ procTypes:
 }
 
 func filterOptionalProcs(processes []*runner.ProcessType) []*runner.ProcessType {
+	groups := make(map[string]struct{})
 	newProcs := []*runner.ProcessType{}
-procTypes:
 	for _, procType := range processes {
 		if procType.Optional {
-			continue procTypes
+			if _, ok := groups[procType.Group]; ok {
+				continue
+			}
+			groups[procType.Group] = struct{}{}
 		}
 		newProcs = append(newProcs, procType)
 	}
