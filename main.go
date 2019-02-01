@@ -268,7 +268,9 @@ func filterOptionalProcs(processes []*runner.ProcessType) []*runner.ProcessType 
 	groups := make(map[string]struct{})
 	newProcs := []*runner.ProcessType{}
 	for _, procType := range processes {
-		if procType.Optional {
+		if procType.Optional && procType.Group == "" {
+			continue
+		} else if procType.Optional && procType.Group != "" {
 			if _, ok := groups[procType.Group]; ok {
 				continue
 			}
