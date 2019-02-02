@@ -68,6 +68,8 @@ const (
 	Never     RestartMode = ""
 )
 
+const websocketLogForwarderBufferSize = 102400
+
 // ProcessType is the piece of software you want to start. Cmd accepts multiple
 // commands. All commands are executed in order of declaration. The last command
 // is considered the call which activates the process type. If WaitBefore is
@@ -163,6 +165,17 @@ type Runner struct {
 	dynamicServiceDiscovery map[string]string
 	staticServiceDiscovery  []string
 	currentGeneration       int
+
+	logsMu         sync.RWMutex
+	logs           chan LogMessage
+	logSubscribers []chan LogMessage
+}
+
+// LogMessage broadcasted through websocket.
+type LogMessage struct {
+	PaddedName string `json:"paddedName"`
+	Name       string `json:"name"`
+	Line       string `json:"line"`
 }
 
 // New creates a new runner ready to use.
@@ -170,6 +183,7 @@ func New() Runner {
 	return Runner{
 		Formation:               make(map[string]int),
 		dynamicServiceDiscovery: make(map[string]string),
+		logs:                    make(chan LogMessage, websocketLogForwarderBufferSize),
 	}
 }
 
@@ -195,7 +209,19 @@ func (r *Runner) Start(rootCtx context.Context) error {
 	}
 	r.longestProcessTypeName++
 
-	go r.serveServiceDiscovery(rootCtx)
+	go r.serveWeb(rootCtx)
+	go func() {
+		for msg := range r.logs {
+			r.logsMu.RLock()
+			for _, subscriber := range r.logSubscribers {
+				select {
+				case subscriber <- msg:
+				default:
+				}
+			}
+			r.logsMu.RUnlock()
+		}
+	}()
 
 	updates, err := r.monitorWorkDir(rootCtx)
 	if err != nil {
@@ -492,7 +518,13 @@ func (r *Runner) prefixedPrinter(ctx context.Context, rdr io.Reader, name string
 	scanner.Buffer(make([]byte, 65536), 2*1048576)
 	go func() {
 		for scanner.Scan() {
-			fmt.Println(paddedName+":", scanner.Text())
+			line := scanner.Text()
+			fmt.Println(paddedName+":", line)
+			r.logs <- LogMessage{
+				PaddedName: paddedName,
+				Name:       name,
+				Line:       line,
+			}
 		}
 
 		select {

@@ -23,9 +23,10 @@ import (
 	"os"
 
 	oversight "cirello.io/oversight/easy"
+	"github.com/gorilla/websocket"
 )
 
-func (r *Runner) serveServiceDiscovery(ctx context.Context) error {
+func (r *Runner) serveWeb(ctx context.Context) error {
 	addr := r.ServiceDiscoveryAddr
 	if addr == "" {
 		return nil
@@ -48,6 +49,44 @@ func (r *Runner) serveServiceDiscovery(ctx context.Context) error {
 			err := enc.Encode(r.dynamicServiceDiscovery)
 			if err != nil {
 				log.Println("cannot serve service discovery request:", err)
+			}
+		})
+		mux.HandleFunc("/logs", func(w http.ResponseWriter, req *http.Request) {
+			filter := req.URL.Query().Get("filter")
+			r.logsMu.Lock()
+			stream := make(chan LogMessage, websocketLogForwarderBufferSize)
+			r.logSubscribers = append(r.logSubscribers, stream)
+			r.logsMu.Unlock()
+			defer func() {
+				r.logsMu.Lock()
+				defer r.logsMu.Unlock()
+				for i := 0; i < len(r.logSubscribers); i++ {
+					if r.logSubscribers[i] == stream {
+						r.logSubscribers = append(r.logSubscribers[:i], r.logSubscribers[i+1:]...)
+						return
+					}
+				}
+			}()
+			upgrader := websocket.Upgrader{}
+			c, err := upgrader.Upgrade(w, req, nil)
+			if err != nil {
+				log.Print("upgrade:", err)
+				return
+			}
+			defer c.Close()
+			for msg := range stream {
+				if filter != "" && msg.Name != filter {
+					continue
+				}
+				b, err := json.Marshal(msg)
+				if err != nil {
+					log.Println("encode:", err)
+					break
+				}
+				if err = c.WriteMessage(websocket.TextMessage, b); err != nil {
+					log.Println("write:", err)
+					break
+				}
 			}
 		})
 

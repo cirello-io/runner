@@ -83,6 +83,7 @@ func run() {
 			Usage: "forcefully runs some of the process types, format: `procTypeA procTypeB procTypeN`",
 		},
 	}
+	app.Commands = []cli.Command{logs()}
 	app.Action = mainRunner
 	if err := app.Run(os.Args); err != nil {
 		log.Fatal(err)
