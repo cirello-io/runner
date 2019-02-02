@@ -26,6 +26,25 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+func (r *Runner) subscribeLogFwd() <-chan LogMessage {
+	r.logsMu.Lock()
+	stream := make(chan LogMessage, websocketLogForwarderBufferSize)
+	r.logSubscribers = append(r.logSubscribers, stream)
+	r.logsMu.Unlock()
+	return stream
+}
+
+func (r *Runner) unsubscribeLogFwd(stream <-chan LogMessage) {
+	r.logsMu.Lock()
+	defer r.logsMu.Unlock()
+	for i := 0; i < len(r.logSubscribers); i++ {
+		if r.logSubscribers[i] == stream {
+			r.logSubscribers = append(r.logSubscribers[:i], r.logSubscribers[i+1:]...)
+			return
+		}
+	}
+}
+
 func (r *Runner) serveWeb(ctx context.Context) error {
 	addr := r.ServiceDiscoveryAddr
 	if addr == "" {
@@ -53,20 +72,8 @@ func (r *Runner) serveWeb(ctx context.Context) error {
 		})
 		mux.HandleFunc("/logs", func(w http.ResponseWriter, req *http.Request) {
 			filter := req.URL.Query().Get("filter")
-			r.logsMu.Lock()
-			stream := make(chan LogMessage, websocketLogForwarderBufferSize)
-			r.logSubscribers = append(r.logSubscribers, stream)
-			r.logsMu.Unlock()
-			defer func() {
-				r.logsMu.Lock()
-				defer r.logsMu.Unlock()
-				for i := 0; i < len(r.logSubscribers); i++ {
-					if r.logSubscribers[i] == stream {
-						r.logSubscribers = append(r.logSubscribers[:i], r.logSubscribers[i+1:]...)
-						return
-					}
-				}
-			}()
+			stream := r.subscribeLogFwd()
+			defer r.unsubscribeLogFwd(stream)
 			upgrader := websocket.Upgrader{}
 			c, err := upgrader.Upgrade(w, req, nil)
 			if err != nil {
