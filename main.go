@@ -66,6 +66,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -77,36 +78,77 @@ import (
 
 	"cirello.io/runner/procfile"
 	"cirello.io/runner/runner"
+	cli "gopkg.in/urfave/cli.v1"
 )
 
 // DefaultProcfile is the file that runner will open by default if no custom
 // is given.
 const DefaultProcfile = "Procfile"
 
-var (
-	convertToJSON = flag.Bool("convert", false, "takes a declared Procfile and prints as JSON to standard output")
-	basePort      = flag.Int("port", 5000, "base IP port used to set $`PORT` for each process type. Should be multiple of 1000.")
-	discoveryAddr = flag.String("service-discovery", "localhost:64000", "service discovery address")
-	formation     = flag.String("formation", "", "formation allows to start more than one instance of a process type, format: `procTypeA=# procTypeB=# ... procTypeN=#`")
-	envFn         = flag.String("env", ".env", "environment `file` to be loaded for all processes.")
-	skipProcs     = flag.String("skip", "", "does not run some of the process types, format: `procTypeA procTypeB procTypeN`")
-	onlyProcs     = flag.String("only", "", "only runs some of the process types, format: `procTypeA procTypeB procTypeN`")
-	optionalProcs = flag.String("optional", "", "forcefully runs some of the process types, format: `procTypeA procTypeB procTypeN`")
-)
-
-func init() {
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "runner - simple Procfile runner\n\n")
-		fmt.Fprintf(os.Stderr, "usage: %s [-convert] [Procfile]\n\nOptions:\n", os.Args[0])
-		flag.PrintDefaults()
-	}
-	flag.Parse()
-}
-
 func main() {
 	log.SetFlags(0)
 	log.SetPrefix("runner: ")
+
+	app := cli.NewApp()
+	app.Name = "runner"
+	app.Usage = "simple Procfile runner"
+	app.HideVersion = true
+	app.Flags = []cli.Flag{
+		cli.BoolFlag{
+			Name:  "convert",
+			Usage: "takes a declared Procfile and prints as JSON to standard output",
+		},
+		cli.IntFlag{
+			Name:  "port",
+			Value: 5000,
+			Usage: "base IP port used to set $`PORT` for each process type. Should be multiple of 1000.",
+		},
+		cli.StringFlag{
+			Name:  "service-discovery",
+			Value: "localhost:64000",
+			Usage: "service discovery address",
+		},
+		cli.StringFlag{
+			Name:  "formation",
+			Value: "",
+			Usage: "formation allows to start more than one instance of a process type, format: `procTypeA=# procTypeB=# ... procTypeN=#`",
+		},
+		cli.StringFlag{
+			Name:  "env",
+			Value: ".env",
+			Usage: "environment `file` to be loaded for all processes.",
+		},
+		cli.StringFlag{
+			Name:  "skip",
+			Value: "",
+			Usage: "does not run some of the process types, format: `procTypeA procTypeB procTypeN`",
+		},
+		cli.StringFlag{
+			Name:  "only",
+			Value: "",
+			Usage: "only runs some of the process types, format: `procTypeA procTypeB procTypeN`",
+		},
+		cli.StringFlag{
+			Name:  "optional",
+			Value: "",
+			Usage: "forcefully runs some of the process types, format: `procTypeA procTypeB procTypeN`",
+		},
+	}
+	app.Action = mainRunner
+	if err := app.Run(os.Args); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func mainRunner(c *cli.Context) error {
 	origStdout := os.Stdout
+	basePort := c.Int("port")
+	convertToJSON := c.Bool("convert")
+	envFN := c.String("env")
+	skipProcs := c.String("skip")
+	onlyProcs := c.String("only")
+	optionalProcs := c.String("optional")
+	discoveryAddr := c.String("service-discovery")
 
 	var (
 		filterPatternMu sync.RWMutex
@@ -163,11 +205,11 @@ func main() {
 
 	fd, err := os.Open(fn)
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 
-	if *basePort < 1 || *basePort > 65535 {
-		log.Fatalln("invalid IP port")
+	if basePort < 1 || basePort > 65535 {
+		return errors.New("invalid IP port")
 	}
 
 	var s runner.Runner
@@ -175,46 +217,46 @@ func main() {
 	switch filepath.Ext(fn) {
 	case ".json":
 		if err := json.NewDecoder(fd).Decode(&s); err != nil {
-			log.Fatalln("cannot parse spec file (json):", err)
+			return fmt.Errorf("cannot parse spec file (json): %v", err)
 		}
 	default:
 		s, err = procfile.Parse(fd)
 		if err != nil {
-			log.Fatalln("cannot parse spec file (procfile):", err)
+			return fmt.Errorf("cannot parse spec file (procfile): %v", err)
 		}
 	}
 
-	if *convertToJSON {
+	if convertToJSON {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "    ")
 		if err := enc.Encode(&s); err != nil {
-			log.Fatalln("cannot encode procfile into JSON:", err)
+			return fmt.Errorf("cannot encode procfile into JSON: %v", err)
 		}
-		return
+		return nil
 	}
 
 	s.WorkDir = os.ExpandEnv(s.WorkDir)
 	if s.WorkDir == "" {
 		wd, err := os.Getwd()
 		if err != nil {
-			log.Fatalln("cannot load current workdir", err)
+			return fmt.Errorf("cannot load current workdir: %v", err)
 		}
 		s.WorkDir = wd
 	}
 
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
+	sigint := make(chan os.Signal, 1)
+	signal.Notify(sigint, os.Interrupt)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() {
-		<-c
+		<-sigint
 		log.Println("shutting down")
 		cancel()
 	}()
 
-	s.BasePort = *basePort
+	s.BasePort = basePort
 
-	if fd, err := os.Open(*envFn); err == nil {
+	if fd, err := os.Open(envFN); err == nil {
 		scanner := bufio.NewScanner(fd)
 		for scanner.Scan() {
 			line := strings.Split(strings.TrimSpace(scanner.Text()), "=")
@@ -225,24 +267,25 @@ func main() {
 			s.BaseEnvironment = append(s.BaseEnvironment, scanner.Text())
 		}
 		if err := scanner.Err(); err != nil {
-			log.Fatalf("error reading environment file (%v): %v", *envFn, err)
+			return fmt.Errorf("error reading environment file (%v): %v", envFN, err)
 		}
 	}
 
-	if *skipProcs != "" {
-		s.Processes = filterSkippedProcs(*skipProcs, s.Processes)
-	} else if *onlyProcs != "" {
-		s.Processes = filterOnlyProcs(*onlyProcs, s.Processes)
+	if skipProcs != "" {
+		s.Processes = filterSkippedProcs(skipProcs, s.Processes)
+	} else if onlyProcs != "" {
+		s.Processes = filterOnlyProcs(onlyProcs, s.Processes)
 	}
-	if *optionalProcs != "" {
-		s.Processes = keepOptionalProcs(*optionalProcs, s.Processes)
+	if optionalProcs != "" {
+		s.Processes = keepOptionalProcs(optionalProcs, s.Processes)
 	} else {
 		s.Processes = filterOptionalProcs(s.Processes)
 	}
-	s.ServiceDiscoveryAddr = *discoveryAddr
+	s.ServiceDiscoveryAddr = discoveryAddr
 	if err := s.Start(ctx); err != nil {
-		log.Fatalln("cannot serve:", err)
+		return fmt.Errorf("cannot serve: %v", err)
 	}
+	return nil
 }
 
 func keepOptionalProcs(optionals string, processes []*runner.ProcessType) []*runner.ProcessType {
