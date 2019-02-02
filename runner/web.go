@@ -21,6 +21,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 
 	oversight "cirello.io/oversight/easy"
 	"github.com/gorilla/websocket"
@@ -82,7 +83,7 @@ func (r *Runner) serveWeb(ctx context.Context) error {
 			}
 			defer c.Close()
 			for msg := range stream {
-				if filter != "" && msg.Name != filter {
+				if filter != "" && !strings.HasPrefix(msg.Name, filter) {
 					continue
 				}
 				b, err := json.Marshal(msg)
