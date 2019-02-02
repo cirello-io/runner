@@ -17,13 +17,16 @@ package runner
 import (
 	"context"
 	"encoding/json"
+	"html/template"
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 
 	oversight "cirello.io/oversight/easy"
+	terminal "github.com/buildkite/terminal-to-html"
 	"github.com/gorilla/websocket"
 )
 
@@ -61,6 +64,20 @@ func (r *Runner) serveWeb(ctx context.Context) error {
 
 	go func() {
 		mux := http.NewServeMux()
+		mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+			u := url.URL{Scheme: "ws", Host: req.Host, Path: "/logs"}
+			query := u.Query()
+			query.Set("model", "html")
+			filter := req.URL.Query().Get("filter")
+			if filter != "" {
+				query.Set("filter", filter)
+			}
+			u.RawQuery = query.Encode()
+			logsPage.Execute(w, struct {
+				URL    string
+				Filter string
+			}{u.String(), filter})
+		})
 		mux.HandleFunc("/discovery", func(w http.ResponseWriter, _ *http.Request) {
 			enc := json.NewEncoder(w)
 			enc.SetIndent("", "    ")
@@ -73,6 +90,7 @@ func (r *Runner) serveWeb(ctx context.Context) error {
 		})
 		mux.HandleFunc("/logs", func(w http.ResponseWriter, req *http.Request) {
 			filter := req.URL.Query().Get("filter")
+			mode := req.URL.Query().Get("mode")
 			stream := r.subscribeLogFwd()
 			defer r.unsubscribeLogFwd(stream)
 			upgrader := websocket.Upgrader{}
@@ -85,6 +103,9 @@ func (r *Runner) serveWeb(ctx context.Context) error {
 			for msg := range stream {
 				if filter != "" && !strings.HasPrefix(msg.Name, filter) {
 					continue
+				}
+				if mode == "html" {
+					msg.Line = string(terminal.Render([]byte(msg.Line)))
 				}
 				b, err := json.Marshal(msg)
 				if err != nil {
@@ -114,3 +135,72 @@ func (r *Runner) serveWeb(ctx context.Context) error {
 	}()
 	return nil
 }
+
+var logsPage = template.Must(template.New("").Parse(`<html>
+<head>
+<style>
+* {
+	margin: 0;
+	padding: 0;
+}
+#controlBar{
+	position:fixed;
+	top: 0px;
+	width:100%;
+	background: white;
+	color: black;
+	height: 25px;
+	border-bottom: #c0c0c0 1pt solid;
+	padding-top: 5px;
+	padding-left: 5px;
+}
+#output{
+	margin-top: 36px;
+	font-family: monospace;
+	white-space: pre;
+	padding-left: 5px;
+}
+</style>
+</head>
+<body>
+<div id="controlBar">
+	<form>
+		<label><input type="checkbox" id="autoScroll" checked> automatic scroll to bottom</label>
+		|
+		<label><input type="text" id="filter" name="filter" checked placeholder="filter by process type" value="{{.Filter}}"></label>
+		<input type=submit style="display: none">
+	</form>
+</div>
+<div id="output"></div>
+<script>
+var print = function(message) {
+	var d = document.createElement("div");
+	d.innerHTML = message;
+	document.getElementById("output").appendChild(d);
+};
+function dial(){
+	var ws = new WebSocket("{{.URL}}");
+	ws.onclose = function(evt) {
+		setTimeout(function(){
+			print("reconnecting...")
+			dial()
+		}, 1000);
+	}
+	ws.onmessage = function(evt) {
+		var msg = JSON.parse(evt.data);
+		print(msg.paddedName+": "+msg.line, msg.name)
+		if (document.getElementById("autoScroll").checked){
+			window.scrollTo(0,document.body.scrollHeight);
+		}
+	}
+	ws.onerror = function(evt) {
+		print("ERROR: " + evt.data, "error");
+	}
+}
+window.addEventListener("load", function(evt) {
+	dial()
+	return false;
+});
+</script>
+</body>
+</html>`))
