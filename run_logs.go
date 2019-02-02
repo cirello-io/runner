@@ -49,48 +49,59 @@ func logs() cli.Command {
 			}
 			log.Printf("connecting to %s", u.String())
 
-			ws, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
-			if err != nil {
-				return fmt.Errorf("cannot dial to service discovery endpoint: %v s", err)
-			}
-			defer ws.Close()
-
-			done := make(chan struct{})
-			go func() {
-				defer close(done)
-				for {
-					_, message, err := ws.ReadMessage()
-					if err != nil {
-						log.Println("read:", err)
-						return
-					}
-					var msg runner.LogMessage
-					if err := json.Unmarshal(message, &msg); err != nil {
-						log.Println("decode:", err)
-						continue
-					}
-					fmt.Println(msg.PaddedName+":", msg.Line)
+			follow := func() error {
+				ws, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+				if err != nil {
+					return fmt.Errorf("cannot dial to service discovery endpoint: %v s", err)
 				}
-			}()
-			for {
-				select {
-				case <-done:
-					return nil
-				case <-interrupt:
-					log.Println("interrupt")
-					err := ws.WriteMessage(
-						websocket.CloseMessage,
-						websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
-					)
-					if err != nil {
-						log.Println("write close:", err)
-						return nil
+				defer ws.Close()
+
+				done := make(chan struct{})
+				go func() {
+					defer close(done)
+					for {
+						_, message, err := ws.ReadMessage()
+						if err != nil {
+							log.Println("read:", err)
+							return
+						}
+						var msg runner.LogMessage
+						if err := json.Unmarshal(message, &msg); err != nil {
+							log.Println("decode:", err)
+							continue
+						}
+						fmt.Println(msg.PaddedName+":", msg.Line)
 					}
+				}()
+				for {
 					select {
 					case <-done:
-					case <-time.After(time.Second):
+						return nil
+					case <-interrupt:
+						log.Println("interrupt")
+						err := ws.WriteMessage(
+							websocket.CloseMessage,
+							websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
+						)
+						if err != nil {
+							log.Println("write close:", err)
+							return nil
+						}
+						select {
+						case <-done:
+						case <-time.After(time.Second):
+						}
+						return nil
 					}
-					return nil
+				}
+			}
+			var err error
+			for {
+				select {
+				case <-interrupt:
+					return err
+				default:
+					err = follow()
 				}
 			}
 		},
