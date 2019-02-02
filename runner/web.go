@@ -65,18 +65,18 @@ func (r *Runner) serveWeb(ctx context.Context) error {
 	go func() {
 		mux := http.NewServeMux()
 		mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
-			u := url.URL{Scheme: "ws", Host: req.Host, Path: "/logs"}
-			query := u.Query()
+			wsURL := url.URL{Scheme: "ws", Host: req.Host, Path: "/logs"}
+			query := wsURL.Query()
 			query.Set("model", "html")
 			filter := req.URL.Query().Get("filter")
 			if filter != "" {
 				query.Set("filter", filter)
 			}
-			u.RawQuery = query.Encode()
+			wsURL.RawQuery = query.Encode()
 			logsPage.Execute(w, struct {
 				URL    string
 				Filter string
-			}{u.String(), filter})
+			}{wsURL.String(), filter})
 		})
 		mux.HandleFunc("/discovery", func(w http.ResponseWriter, _ *http.Request) {
 			enc := json.NewEncoder(w)
@@ -143,22 +143,30 @@ var logsPage = template.Must(template.New("").Parse(`<html>
 	margin: 0;
 	padding: 0;
 }
-#controlBar{
-	position:fixed;
-	top: 0px;
-	width:100%;
+#controlBar {
 	background: white;
+	border-bottom: #c0c0c0 1pt solid;
 	color: black;
 	height: 25px;
-	border-bottom: #c0c0c0 1pt solid;
+	padding-left: 5px;
 	padding-top: 5px;
-	padding-left: 5px;
+	position:fixed;
+	top: 0px;
+	width: 100%;
 }
-#output{
-	margin-top: 36px;
+#output {
 	font-family: monospace;
-	white-space: pre;
+	margin-top: 36px;
+	padding-bottom: 10px;
 	padding-left: 5px;
+	white-space: pre;
+}
+#status {
+	font-size: 13px;
+}
+IMG.badges {
+	height: 20px;
+	vertical-align: bottom;
 }
 </style>
 </head>
@@ -169,6 +177,8 @@ var logsPage = template.Must(template.New("").Parse(`<html>
 		|
 		<label><input type="text" id="filter" name="filter" checked placeholder="filter by process type" value="{{.Filter}}"></label>
 		<input type=submit style="display: none">
+		|
+		<label>processes: <span id="status"><em>loading...</em></span></label>
 	</form>
 </div>
 <div id="output"></div>
@@ -197,8 +207,41 @@ function dial(){
 		print("ERROR: " + evt.data, "error");
 	}
 }
+function updateStatus(){
+	var xhr = new XMLHttpRequest();
+	xhr.open('GET', '/discovery');
+	xhr.onload = function() {
+		if (xhr.status != 200) {
+			console.log('Request failed.  Returned status of ' + xhr.status);
+			return
+		}
+		var svcs = JSON.parse(xhr.responseText);
+		if (svcs.length == 0) {
+			return
+		}
+		var svc = ''
+		for (i in svcs) {
+			if (i.indexOf('BUILD_') === -1) {
+				continue
+			}
+			var name = i.substring(6)
+			if (svcs[i] == "done") {
+				svc += '<img class="badges" src="https://img.shields.io/badge/'+name+'-done-green.svg"/> '
+			} else if (svcs[i] == "errored") {
+				svc += '<img class="badges" src="https://img.shields.io/badge/'+name+'-errored-red.svg"/> '
+			} else if (svcs[i] == "building") {
+				svc += '<img class="badges" src="https://img.shields.io/badge/'+name+'-building-blue.svg"/> '
+			} else {
+				svc += '<img class="badges" src="https://img.shields.io/badge/'+name+'-unknown-lightgrey.svg"/> '
+			}
+		}
+		document.getElementById('status').innerHTML=svc
+	};
+	xhr.send();
+}
 window.addEventListener("load", function(evt) {
 	dial()
+	setInterval(updateStatus, 1000)
 	return false;
 });
 </script>

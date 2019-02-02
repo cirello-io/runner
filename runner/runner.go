@@ -291,9 +291,14 @@ func (r *Runner) runBuilds(ctx context.Context, fn string) bool {
 		r.setServiceDiscovery(normalizeByEnvVarRules(sv.Name), "building")
 		wgBuild.Add(1)
 		go func(sv *ProcessType) {
+			localOk := true
 			defer wgBuild.Done()
 			defer func() {
-				r.setServiceDiscovery(normalizeByEnvVarRules(sv.Name), "done")
+				status := "done"
+				if !localOk {
+					status = "errored"
+				}
+				r.setServiceDiscovery(normalizeByEnvVarRules(sv.Name), status)
 			}()
 			c := ctx
 			if sv.Sticky {
@@ -303,6 +308,7 @@ func (r *Runner) runBuilds(ctx context.Context, fn string) bool {
 			if !r.startProcess(c, sv, -1, -1, fn) {
 				mu.Lock()
 				ok = false
+				localOk = false
 				mu.Unlock()
 			}
 		}(sv)
