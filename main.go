@@ -70,11 +70,14 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"cirello.io/runner/procfile"
 	"cirello.io/runner/runner"
@@ -87,8 +90,83 @@ const DefaultProcfile = "Procfile"
 
 func main() {
 	log.SetFlags(0)
-	log.SetPrefix("runner: ")
 
+	facet := filepath.Base(os.Args[0])
+
+	switch facet {
+	case "waitfor":
+		log.SetPrefix("waitfor: ")
+		waitfor()
+	default:
+		log.SetPrefix("runner: ")
+		run()
+	}
+
+}
+
+func waitfor() {
+	app := cli.NewApp()
+	app.Name = "waitfor"
+	app.Usage = "probes the service discovery before running the given command"
+	app.HideVersion = true
+	app.Flags = []cli.Flag{
+		cli.StringFlag{
+			Name:  "service-discovery",
+			Value: "localhost:64000",
+			Usage: "service discovery address",
+		},
+	}
+	app.Action = func(c *cli.Context) error {
+		sigint := make(chan os.Signal, 1)
+		signal.Notify(sigint, os.Interrupt)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		go func() {
+			<-sigint
+			log.Println("shutting down")
+			cancel()
+		}()
+
+		for {
+			time.Sleep(250 * time.Millisecond)
+			resp, err := http.Get("http://" + c.String("service-discovery"))
+			if err != nil {
+				continue
+			}
+			defer resp.Body.Close()
+			var procs map[string]string // map of procType to state
+			if err := json.NewDecoder(resp.Body).Decode(&procs); err != nil {
+				return fmt.Errorf("cannot parse state of service discovery endpoint: %v", err)
+			}
+			allBuilt := true
+			for k, v := range procs {
+				if !strings.HasPrefix(k, "BUILD_") || v == "done" {
+					continue
+				}
+				allBuilt = false
+				break
+
+			}
+			if allBuilt {
+				break
+			}
+		}
+
+		cmd := strings.Join(c.Args(), " ")
+		cmdExec := exec.CommandContext(ctx, "sh", "-c", cmd)
+		cmdExec.Stdin = os.Stdin
+		cmdExec.Stderr = os.Stderr
+		cmdExec.Stdout = os.Stdout
+		cmdExec.Run()
+
+		return nil
+	}
+	if err := app.Run(os.Args); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run() {
 	app := cli.NewApp()
 	app.Name = "runner"
 	app.Usage = "simple Procfile runner"
@@ -170,7 +248,6 @@ func mainRunner(c *cli.Context) error {
 		}
 	}()
 	go func() {
-
 		r, w, _ := os.Pipe()
 		os.Stdout = w
 		scanner := bufio.NewScanner(r)
