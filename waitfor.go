@@ -54,7 +54,7 @@ func waitfor() {
 
 		for {
 			time.Sleep(250 * time.Millisecond)
-			resp, err := http.Get("http://" + c.String("service-discovery"))
+			resp, err := http.Get("http://" + c.String("service-discovery") + "/discovery")
 			if err != nil {
 				continue
 			}

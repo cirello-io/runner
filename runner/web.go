@@ -61,7 +61,7 @@ func (r *Runner) serveWeb(ctx context.Context) error {
 
 	go func() {
 		mux := http.NewServeMux()
-		mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
+		mux.HandleFunc("/discovery", func(w http.ResponseWriter, _ *http.Request) {
 			enc := json.NewEncoder(w)
 			enc.SetIndent("", "    ")
 			r.sdMu.Lock()
