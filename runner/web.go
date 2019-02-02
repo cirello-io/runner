@@ -101,7 +101,7 @@ func (r *Runner) serveWeb(ctx context.Context) error {
 			}
 			defer c.Close()
 			for msg := range stream {
-				if filter != "" && !strings.HasPrefix(msg.Name, filter) {
+				if filter != "" && !strings.Contains(msg.Name, filter) && !strings.Contains(msg.Line, filter) {
 					continue
 				}
 				if mode == "html" {
@@ -175,7 +175,7 @@ IMG.badges {
 	<form>
 		<label><input type="checkbox" id="autoScroll" checked> automatic scroll to bottom</label>
 		|
-		<label><input type="text" id="filter" name="filter" checked placeholder="filter by process type" value="{{.Filter}}"></label>
+		<label><input type="text" id="filter" name="filter" checked placeholder="filter" value="{{.Filter}}"></label>
 		<input type=submit style="display: none">
 		|
 		<label>processes: <span id="status"><em>loading...</em></span></label>
