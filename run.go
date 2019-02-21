@@ -19,7 +19,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -148,7 +147,7 @@ func mainRunner(c *cli.Context) error {
 	}()
 
 	fn := DefaultProcfile
-	if argFn := flag.Arg(0); argFn != "" {
+	if argFn := c.Args().First(); argFn != "" {
 		fn = argFn
 	}
 
