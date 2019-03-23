@@ -192,6 +192,12 @@ var print = function(message) {
 	d.innerHTML = message;
 	document.getElementById("output").appendChild(d);
 };
+function trimOutput(){
+	const maxBufferSize = 262144
+	if (document.getElementById("output").innerText.length > maxBufferSize) {
+		document.getElementById("output").innerText = document.getElementById("output").innerText.substr(-maxBufferSize)
+	}
+}
 function dial(){
 	var ws = new WebSocket("{{.URL}}");
 	ws.onclose = function(evt) {
@@ -251,6 +257,7 @@ function updateStatus(){
 window.addEventListener("load", function(evt) {
 	dial()
 	setInterval(updateStatus, 1000)
+	setInterval(trimOutput, 1000)
 	return false;
 });
 </script>
