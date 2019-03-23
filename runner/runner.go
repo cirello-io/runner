@@ -299,9 +299,11 @@ func (r *Runner) runBuilds(ctx context.Context, fn string) bool {
 				status := "done"
 				if !localOk {
 					status = "errored"
+					r.setServiceDiscovery("ERROR_"+normalizeByEnvVarRules(sv.Name), buf.String())
+				} else {
+					r.deleteServiceDiscovery("ERROR_" + normalizeByEnvVarRules(sv.Name))
 				}
 				r.setServiceDiscovery(normalizeByEnvVarRules(sv.Name), status)
-				r.setServiceDiscovery("ERROR_"+normalizeByEnvVarRules(sv.Name), buf.String())
 			}()
 			c := ctx
 			if sv.Sticky {
@@ -553,5 +555,11 @@ func (r *Runner) prefixedPrinter(ctx context.Context, rdr io.Reader, name string
 func (r *Runner) setServiceDiscovery(svc, state string) {
 	r.sdMu.Lock()
 	r.dynamicServiceDiscovery[svc] = state
+	r.sdMu.Unlock()
+}
+
+func (r *Runner) deleteServiceDiscovery(svc string) {
+	r.sdMu.Lock()
+	delete(r.dynamicServiceDiscovery, svc)
 	r.sdMu.Unlock()
 }
