@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -291,6 +292,7 @@ func (r *Runner) runBuilds(ctx context.Context, fn string) bool {
 		r.setServiceDiscovery(normalizeByEnvVarRules(sv.Name), "building")
 		wgBuild.Add(1)
 		go func(sv *ProcessType) {
+			var buf bytes.Buffer
 			localOk := true
 			defer wgBuild.Done()
 			defer func() {
@@ -299,13 +301,14 @@ func (r *Runner) runBuilds(ctx context.Context, fn string) bool {
 					status = "errored"
 				}
 				r.setServiceDiscovery(normalizeByEnvVarRules(sv.Name), status)
+				r.setServiceDiscovery("ERROR_"+normalizeByEnvVarRules(sv.Name), buf.String())
 			}()
 			c := ctx
 			if sv.Sticky {
 				log.Println(sv.Name, "is sticky")
 				c = context.Background()
 			}
-			if !r.startProcess(c, sv, -1, -1, fn) {
+			if !r.startProcess(c, sv, -1, -1, fn, &buf) {
 				mu.Lock()
 				ok = false
 				localOk = false
@@ -350,7 +353,7 @@ func (r *Runner) runNonBuilds(rootCtx, ctx context.Context, changedFileName stri
 				loopSvcCtx := oversight.WithContext(rootCtx)
 				oversight.Add(loopSvcCtx, func(ctx context.Context) error {
 					<-ready
-					r.startProcess(ctx, sv, i, pc, changedFileName)
+					r.startProcess(ctx, sv, i, pc, changedFileName, ioutil.Discard)
 					return nil
 				}, oversight.RestartWith(oversight.Permanent()))
 				portCount++
@@ -358,7 +361,7 @@ func (r *Runner) runNonBuilds(rootCtx, ctx context.Context, changedFileName stri
 				temporarySvcCtx := oversight.WithContext(rootCtx)
 				oversight.Add(temporarySvcCtx, func(ctx context.Context) error {
 					<-ready
-					r.startProcess(ctx, sv, i, pc, changedFileName)
+					r.startProcess(ctx, sv, i, pc, changedFileName, ioutil.Discard)
 					return nil
 				}, oversight.RestartWith(oversight.Temporary()))
 				portCount++
@@ -375,7 +378,7 @@ func (r *Runner) runNonBuilds(rootCtx, ctx context.Context, changedFileName stri
 				}
 				oversight.Add(procCtx, func(ctx context.Context) error {
 					<-ready
-					ok := r.startProcess(ctx, sv, i, pc, changedFileName)
+					ok := r.startProcess(ctx, sv, i, pc, changedFileName, ioutil.Discard)
 					if !ok && sv.Restart == OnFailure {
 						return errors.New("restarting on failure")
 					}
@@ -417,7 +420,7 @@ func normalizeByEnvVarRules(name string) string {
 	return strings.ToUpper(buf.String())
 }
 
-func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, portCount int, changedFileName string) bool {
+func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, portCount int, changedFileName string, buf io.Writer) bool {
 	pr, pw := io.Pipe()
 	procName := sv.Name
 	port := r.BasePort + portCount
@@ -469,8 +472,8 @@ func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, p
 			continue
 		}
 
-		r.prefixedPrinter(ctx, stderrPipe, procName)
-		r.prefixedPrinter(ctx, stdoutPipe, procName)
+		r.prefixedPrinter(ctx, io.TeeReader(stderrPipe, buf), procName)
+		r.prefixedPrinter(ctx, io.TeeReader(stdoutPipe, buf), procName)
 
 		isFirstCommand := idx == 0
 		isLastCommand := idx+1 == len(sv.Cmd)

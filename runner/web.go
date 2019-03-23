@@ -147,7 +147,8 @@ var logsPage = template.Must(template.New("").Parse(`<html>
 	background: white;
 	border-bottom: #c0c0c0 1pt solid;
 	color: black;
-	height: 25px;
+	min-height: 25px;
+	height: auto;
 	padding-left: 5px;
 	padding-top: 5px;
 	position:fixed;
@@ -173,12 +174,15 @@ IMG.badges {
 <body>
 <div id="controlBar">
 	<form>
-		<label><input type="checkbox" id="autoScroll" checked> automatic scroll to bottom</label>
-		|
-		<label><input type="text" id="filter" name="filter" checked placeholder="filter" value="{{.Filter}}"></label>
-		<input type=submit style="display: none">
-		|
-		<label>processes: <span id="status"><em>loading...</em></span></label>
+		<div>
+			<label><input type="checkbox" id="autoScroll" checked> automatic scroll to bottom</label>
+			|
+			<label><input type="text" id="filter" name="filter" checked placeholder="filter" value="{{.Filter}}"></label>
+			<input type=submit style="display: none">
+			|
+			<label>processes: <span id="status"><em>loading...</em></span></label>
+		</div>
+		<div><pre><span id="build_errors"></span></pre></div>
 	</form>
 </div>
 <div id="output"></div>
@@ -220,22 +224,27 @@ function updateStatus(){
 			return
 		}
 		var svc = ''
+		var errors = ''
 		for (i in svcs) {
-			if (i.indexOf('BUILD_') === -1) {
-				continue
+			if (i.indexOf('BUILD_') === 0) {
+				var name = i.substring(6)
+				if (svcs[i] == "done") {
+					svc += '<img class="badges" src="https://img.shields.io/badge/'+name+'-done-green.svg"/> '
+				} else if (svcs[i] == "errored") {
+					svc += '<img class="badges" src="https://img.shields.io/badge/'+name+'-errored-red.svg"/> '
+				} else if (svcs[i] == "building") {
+					svc += '<img class="badges" src="https://img.shields.io/badge/'+name+'-building-blue.svg"/> '
+				} else {
+					svc += '<img class="badges" src="https://img.shields.io/badge/'+name+'-unknown-lightgrey.svg"/> '
+				}
 			}
-			var name = i.substring(6)
-			if (svcs[i] == "done") {
-				svc += '<img class="badges" src="https://img.shields.io/badge/'+name+'-done-green.svg"/> '
-			} else if (svcs[i] == "errored") {
-				svc += '<img class="badges" src="https://img.shields.io/badge/'+name+'-errored-red.svg"/> '
-			} else if (svcs[i] == "building") {
-				svc += '<img class="badges" src="https://img.shields.io/badge/'+name+'-building-blue.svg"/> '
-			} else {
-				svc += '<img class="badges" src="https://img.shields.io/badge/'+name+'-unknown-lightgrey.svg"/> '
+			if (i.indexOf('ERROR_') === 0) {
+				var name = i.substring(12)
+				errors += "\n"+name+"\n"+svcs[i]+"\n<hr/>"
 			}
 		}
 		document.getElementById('status').innerHTML=svc
+		document.getElementById('build_errors').innerHTML=errors
 	};
 	xhr.send();
 }
