@@ -220,6 +220,7 @@ function dial(){
 function updateStatus(){
 	var xhr = new XMLHttpRequest();
 	xhr.open('GET', '/discovery');
+	var lastErr = ""
 	xhr.onload = function() {
 		if (xhr.status != 200) {
 			console.log('Request failed.  Returned status of ' + xhr.status);
@@ -250,7 +251,10 @@ function updateStatus(){
 			}
 		}
 		document.getElementById('status').innerHTML=svc
-		document.getElementById('build_errors').innerHTML=errors
+		if errors !== lastErr {
+			lastErr = errors
+			document.getElementById('build_errors').innerHTML=errors
+		}
 	};
 	xhr.send();
 }
