@@ -26,7 +26,7 @@ import (
 	"strings"
 	"time"
 
-	cli "gopkg.in/urfave/cli.v1"
+	cli "github.com/urfave/cli"
 )
 
 func waitfor() {

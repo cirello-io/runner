@@ -29,7 +29,7 @@ import (
 
 	"cirello.io/runner/procfile"
 	"cirello.io/runner/runner"
-	cli "gopkg.in/urfave/cli.v1"
+	cli "github.com/urfave/cli"
 )
 
 // DefaultProcfile is the file that runner will open by default if no custom

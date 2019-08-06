@@ -25,7 +25,7 @@ import (
 
 	"cirello.io/runner/runner"
 	"github.com/gorilla/websocket"
-	cli "gopkg.in/urfave/cli.v1"
+	cli "github.com/urfave/cli"
 )
 
 func logs() cli.Command {
