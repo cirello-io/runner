@@ -160,7 +160,7 @@ func mainRunner(c *cli.Context) error {
 		return errors.New("invalid IP port")
 	}
 
-	var s runner.Runner
+	var s *runner.Runner
 
 	switch filepath.Ext(fn) {
 	case ".json":

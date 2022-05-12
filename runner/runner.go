@@ -180,8 +180,8 @@ type LogMessage struct {
 }
 
 // New creates a new runner ready to use.
-func New() Runner {
-	return Runner{
+func New() *Runner {
+	return &Runner{
 		Formation:               make(map[string]int),
 		dynamicServiceDiscovery: make(map[string]string),
 		logs:                    make(chan LogMessage, websocketLogForwarderBufferSize),

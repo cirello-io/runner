@@ -98,30 +98,36 @@ malformed-line`
 }
 
 func TestParseErrors(t *testing.T) {
-	example := `formation: web=a`
-	got, err := Parse(strings.NewReader(example))
-	if err != nil {
-		t.Error("unexpected error", err)
-	}
-	if q := got.Formation["web"]; q != 1 {
-		t.Error("non-numeric process type formations should default to 1, got:", q)
-	}
+	t.Run("web=a", func(t *testing.T) {
+		example := `formation: web=a`
+		got, err := Parse(strings.NewReader(example))
+		if err != nil {
+			t.Error("unexpected error", err)
+		}
+		if q := got.Formation["web"]; q != 1 {
+			t.Error("non-numeric process type formations should default to 1, got:", q)
+		}
+	})
 
-	example = `formation: web`
-	got, err = Parse(strings.NewReader(example))
-	if err != nil {
-		t.Error("unexpected error", err)
-	}
-	if q := got.Formation["web"]; q != 1 {
-		t.Error("non specified process type quantities should default to 1, got:", q)
-	}
+	t.Run("web", func(t *testing.T) {
+		example := `formation: web`
+		got, err := Parse(strings.NewReader(example))
+		if err != nil {
+			t.Error("unexpected error", err)
+		}
+		if q := got.Formation["web"]; q != 1 {
+			t.Error("non specified process type quantities should default to 1, got:", q)
+		}
+	})
 
-	example = `formation:     `
-	got, err = Parse(strings.NewReader(example))
-	if err != nil {
-		t.Error("unexpected error", err)
-	}
-	if l := len(got.Formation); l != 0 {
-		t.Error("empty formation lines should result in empty formations maps, got:", l)
-	}
+	t.Run("empty", func(t *testing.T) {
+		example := `formation:     `
+		got, err := Parse(strings.NewReader(example))
+		if err != nil {
+			t.Error("unexpected error", err)
+		}
+		if l := len(got.Formation); l != 0 {
+			t.Error("empty formation lines should result in empty formations maps, got:", l)
+		}
+	})
 }

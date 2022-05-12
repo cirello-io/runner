@@ -76,7 +76,7 @@ import (
 )
 
 // Parse takes a reader that contains an extended Procfile.
-func Parse(r io.Reader) (runner.Runner, error) {
+func Parse(r io.Reader) (*runner.Runner, error) {
 	rnr := runner.New()
 
 	scanner := bufio.NewScanner(r)
@@ -87,11 +87,11 @@ func Parse(r io.Reader) (runner.Runner, error) {
 		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "//") {
 			continue
 		}
-		parts := strings.SplitN(line, ":", 2)
-		if len(parts) < 2 {
+		procType, command, found := strings.Cut(line, ":")
+		if !found {
 			continue
 		}
-		procType, command := strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
+		procType, command = strings.TrimSpace(procType), strings.TrimSpace(command)
 		switch strings.ToLower(procType) {
 		case "workdir":
 			rnr.WorkDir = os.ExpandEnv(command)
@@ -102,23 +102,13 @@ func Parse(r io.Reader) (runner.Runner, error) {
 		case "formation":
 			procs := strings.Split(command, " ")
 			for _, proc := range procs {
-				parts := strings.Split(proc, "=")
-				switch len(parts) {
-				case 0:
+				procName, count, _ := strings.Cut(proc, "=")
+				procName = strings.TrimSpace(procName)
+				if procName == "" {
 					continue
-				case 1:
-					procName := strings.TrimSpace(parts[0])
-					if procName == "" {
-						continue
-					}
-					rnr.Formation[procName] = 1
-					continue
-				default:
-					procName := strings.TrimSpace(parts[0])
-					quantity, err := strconv.Atoi(strings.TrimSpace(parts[1]))
-					if err != nil {
-						quantity = 1
-					}
+				}
+				rnr.Formation[procName] = 1
+				if quantity, err := strconv.Atoi(strings.TrimSpace(count)); err == nil {
 					rnr.Formation[procName] = quantity
 				}
 			}
