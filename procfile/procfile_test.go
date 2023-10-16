@@ -16,11 +16,12 @@ package procfile
 
 import (
 	"os"
-	"reflect"
 	"strings"
 	"testing"
 
 	"cirello.io/runner/runner"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestParse(t *testing.T) {
@@ -92,8 +93,8 @@ malformed-line`
 		"web3": 1,
 	}
 
-	if !reflect.DeepEqual(&got, &expected) {
-		t.Errorf("parser did not get the right result. got: %#v\nexpected:%#v", &got, &expected)
+	if !cmp.Equal(got, expected, cmpopts.IgnoreUnexported(runner.Runner{})) {
+		t.Errorf("parser did not get the right result. \n%v", cmp.Diff(got, expected, cmpopts.IgnoreUnexported(runner.Runner{})))
 	}
 }
 
