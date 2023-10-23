@@ -63,7 +63,7 @@ func run() {
 		},
 		cli.StringFlag{
 			Name:  "env",
-			Value: ".env",
+			Value: "",
 			Usage: "environment `file` to be loaded for all processes.",
 		},
 		cli.StringFlag{
@@ -204,14 +204,17 @@ func mainRunner(c *cli.Context) error {
 
 	s.BasePort = basePort
 
-	if fd, err := os.Open(envFN); err == nil {
+	if envFN != "" {
+		fd, err := os.Open(envFN)
+		if err != nil {
+			return fmt.Errorf("cannot open environment file (%v): %v", envFN, err)
+		}
 		scanner := bufio.NewScanner(fd)
 		for scanner.Scan() {
 			line := strings.Split(strings.TrimSpace(scanner.Text()), "=")
 			if len(line) != 2 {
 				continue
 			}
-
 			s.BaseEnvironment = append(s.BaseEnvironment, scanner.Text())
 		}
 		if err := scanner.Err(); err != nil {
