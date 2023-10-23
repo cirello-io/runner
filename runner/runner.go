@@ -130,7 +130,8 @@ type Runner struct {
 	WorkDir string `json:"workdir,omitempty"`
 
 	// Observables are the filepath.Match() patterns used to scan for files
-	// with changes.
+	// with changes. File patterns preceded with exclamation mark (!) will
+	// not trigger builds.
 	Observables []string `json:"observables,omitempty"`
 
 	// SkipDirs are the directory names that are ignored during changed file

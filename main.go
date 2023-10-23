@@ -33,7 +33,8 @@ Special process types:
 the same rules for exec.Command.Dir.
 
 - observe: a space separated list of file patterns to scan for. It uses
-filepath.Match internally.
+filepath.Match internally. File patterns preceded with exclamation mark (!) will
+not trigger builds.
 
 - ignore: a space separated list of ignored directories relative to workdir,
 typically vendor directories.
