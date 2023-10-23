@@ -91,10 +91,8 @@ func (s *Runner) consumeFsnotifyEvents(ctx context.Context, watcher *fsnotify.Wa
 					}
 					skipIfMatched := strings.HasPrefix(p, "!")
 					if skipIfMatched {
-						log.Println("skipping", event.Name)
 						break
 					}
-					log.Println("adding", event.Name)
 					triggereds <- event.Name
 				}
 			case err := <-watcher.Errors:
