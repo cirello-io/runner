@@ -85,9 +85,15 @@ func (s *Runner) consumeFsnotifyEvents(ctx context.Context, watcher *fsnotify.Wa
 					continue
 				}
 				for _, p := range s.Observables {
-					if match(p, event.Name) {
-						triggereds <- event.Name
+					ok := match(p, event.Name)
+					if !ok {
+						continue
 					}
+					skipIfMatched := strings.HasPrefix("!", p)
+					if skipIfMatched {
+						break
+					}
+					triggereds <- event.Name
 				}
 			case err := <-watcher.Errors:
 				log.Println("fswatch error:", err)
