@@ -85,9 +85,17 @@ func (s *Runner) consumeFsnotifyEvents(ctx context.Context, watcher *fsnotify.Wa
 					continue
 				}
 				for _, p := range s.Observables {
-					if match(p, event.Name) {
-						triggereds <- event.Name
+					ok := match(strings.TrimPrefix(p, "!"), event.Name)
+					if !ok {
+						continue
 					}
+					skipIfMatched := strings.HasPrefix(p, "!")
+					if skipIfMatched {
+						log.Println("skipping", event.Name)
+						break
+					}
+					log.Println("adding", event.Name)
+					triggereds <- event.Name
 				}
 			case err := <-watcher.Errors:
 				log.Println("fswatch error:", err)
