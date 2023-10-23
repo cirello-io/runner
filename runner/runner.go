@@ -28,6 +28,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -190,6 +191,18 @@ func New() *Runner {
 
 // Start initiates the application.
 func (r *Runner) Start(rootCtx context.Context) error {
+	slices.SortStableFunc(r.Observables, func(a, b string) int {
+		negateA := len(a) > 0 && a[0] == '!'
+		negateB := len(b) > 0 && b[0] == '!'
+		switch {
+		case negateA && !negateB:
+			return -1
+		case !negateA && negateB:
+			return 1
+		default:
+			return 0
+		}
+	})
 	nameDict := make(map[string]struct{})
 	for _, proc := range r.Processes {
 		name := proc.Name
