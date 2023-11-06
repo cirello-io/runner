@@ -27,7 +27,7 @@ import (
 
 	oversight "cirello.io/oversight/easy"
 	terminal "github.com/buildkite/terminal-to-html"
-	"github.com/gorilla/websocket"
+	"nhooyr.io/websocket"
 )
 
 func (r *Runner) subscribeLogFwd() <-chan LogMessage {
@@ -93,13 +93,12 @@ func (r *Runner) serveWeb(ctx context.Context) error {
 			mode := req.URL.Query().Get("mode")
 			stream := r.subscribeLogFwd()
 			defer r.unsubscribeLogFwd(stream)
-			upgrader := websocket.Upgrader{}
-			c, err := upgrader.Upgrade(w, req, nil)
+			c, err := websocket.Accept(w, req, nil)
 			if err != nil {
 				log.Print("upgrade:", err)
 				return
 			}
-			defer c.Close()
+			defer c.CloseNow()
 			for msg := range stream {
 				if filter != "" && !strings.Contains(msg.Name, filter) && !strings.Contains(msg.Line, filter) {
 					continue
@@ -112,7 +111,7 @@ func (r *Runner) serveWeb(ctx context.Context) error {
 					log.Println("encode:", err)
 					break
 				}
-				if err = c.WriteMessage(websocket.TextMessage, b); err != nil {
+				if err = c.Write(req.Context(), websocket.MessageText, b); err != nil {
 					log.Println("write:", err)
 					break
 				}

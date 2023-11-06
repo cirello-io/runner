@@ -479,12 +479,12 @@ func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, p
 
 		stderrPipe, err := c.StderrPipe()
 		if err != nil {
-			fmt.Fprintln(pw, "cannot open stderr pipe", procName, cmd)
+			fmt.Fprintln(pw, "cannot open stderr pipe", procName, cmd, err)
 			continue
 		}
 		stdoutPipe, err := c.StdoutPipe()
 		if err != nil {
-			fmt.Fprintln(pw, "cannot open stdout pipe", procName, cmd)
+			fmt.Fprintln(pw, "cannot open stdout pipe", procName, cmd, err)
 			continue
 		}
 

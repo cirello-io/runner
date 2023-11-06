@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -24,8 +25,8 @@ import (
 	"time"
 
 	"cirello.io/runner/runner"
-	"github.com/gorilla/websocket"
 	cli "github.com/urfave/cli"
+	"nhooyr.io/websocket"
 )
 
 func logs() cli.Command {
@@ -38,8 +39,8 @@ func logs() cli.Command {
 			},
 		},
 		Action: func(c *cli.Context) error {
-			interrupt := make(chan os.Signal, 1)
-			signal.Notify(interrupt, os.Interrupt)
+			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+			defer stop()
 
 			u := url.URL{Scheme: "ws", Host: c.GlobalString("service-discovery"), Path: "/logs"}
 			if filter := c.String("filter"); filter != "" {
@@ -50,17 +51,17 @@ func logs() cli.Command {
 			log.Printf("connecting to %s", u.String())
 
 			follow := func() error {
-				ws, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+				ws, _, err := websocket.Dial(ctx, u.String(), nil)
 				if err != nil {
 					return fmt.Errorf("cannot dial to service discovery endpoint: %v s", err)
 				}
-				defer ws.Close()
+				defer ws.CloseNow()
 
 				done := make(chan struct{})
 				go func() {
 					defer close(done)
 					for {
-						_, message, err := ws.ReadMessage()
+						_, message, err := ws.Read(ctx)
 						if err != nil {
 							log.Println("read:", err)
 							return
@@ -77,16 +78,9 @@ func logs() cli.Command {
 					select {
 					case <-done:
 						return nil
-					case <-interrupt:
+					case <-ctx.Done():
 						log.Println("interrupt")
-						err := ws.WriteMessage(
-							websocket.CloseMessage,
-							websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
-						)
-						if err != nil {
-							log.Println("write close:", err)
-							return nil
-						}
+						ws.Close(websocket.StatusNormalClosure, "")
 						select {
 						case <-done:
 						case <-time.After(time.Second):
@@ -98,7 +92,7 @@ func logs() cli.Command {
 			var err error
 			for {
 				select {
-				case <-interrupt:
+				case <-ctx.Done():
 					return err
 				default:
 					err = follow()
