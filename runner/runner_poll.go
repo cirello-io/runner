@@ -29,7 +29,7 @@ func (s *Runner) monitorWorkDir(ctx context.Context) (<-chan string, error) {
 	if _, err := os.Stat(s.WorkDir); err != nil {
 		return nil, err
 	}
-	triggereds := make(chan string, 1024)
+	triggereds := make(chan string, 1)
 	memo := make(map[string]time.Time)
 	go func() {
 		for {
@@ -58,7 +58,10 @@ func (s *Runner) monitorWorkDir(ctx context.Context) (<-chan string, error) {
 						}
 						if !mtime.Equal(memoMTime) {
 							memo[path] = mtime
-							triggereds <- path
+							select {
+							case triggereds <- path:
+							default:
+							}
 							break
 						}
 					}
