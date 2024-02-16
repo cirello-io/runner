@@ -3,7 +3,7 @@ module cirello.io/runner
 go 1.21
 
 require (
-	cirello.io/oversight v1.2.1
+	cirello.io/oversight v1.3.0
 	github.com/buildkite/terminal-to-html v3.2.0+incompatible
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/google/go-cmp v0.6.0
