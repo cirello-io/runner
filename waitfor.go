@@ -82,9 +82,7 @@ func waitfor() {
 		cmdExec.Stdin = os.Stdin
 		cmdExec.Stderr = os.Stderr
 		cmdExec.Stdout = os.Stdout
-		cmdExec.Run()
-
-		return nil
+		return cmdExec.Run()
 	}
 	if err := app.Run(os.Args); err != nil {
 		log.Fatal(err)

@@ -50,12 +50,17 @@ func logs() cli.Command {
 			}
 			log.Printf("connecting to %s", u.String())
 
-			follow := func() error {
+			follow := func() (outErr error) {
 				ws, _, err := websocket.Dial(ctx, u.String(), nil)
 				if err != nil {
 					return fmt.Errorf("cannot dial to service discovery endpoint: %v s", err)
 				}
-				defer ws.CloseNow()
+				defer func() {
+					err := ws.CloseNow()
+					if outErr == nil && err != nil {
+						outErr = err
+					}
+				}()
 
 				done := make(chan struct{})
 				go func() {
