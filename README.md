@@ -44,7 +44,7 @@ when it naturally terminates.
 
 - group (in process type): group of processes that depend on each other. If a
 process type fails, it will halt all others in the same group. If the
-"restart" paramater is not set to "always" or "fail", the affected process
+"restart" parameter is not set to "always" or "fail", the affected process
 types will halt and not restart.
 
 - sticky (in build process types): a sticky build is not interrupted when file
@@ -76,7 +76,7 @@ Options:
 `-convert` allows you to generate a JSON version of the Procfile. This format
 is more verbose but allows for more options. It can be used to add more steps
 for each process type and to network readiness test before the first step, or
-before the last one. [Refer to this datastructure to understand its possibilities.](https://godoc.org/cirello.io/runner/runner#Runner)
+before the last one. [Refer to this data structure to understand its possibilities.](https://pkg.go.dev/cirello.io/runner/runner#Runner)
 
 `-env file` loads the environment file common to all process types. It must be
 in the format below:

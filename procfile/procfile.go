@@ -52,7 +52,7 @@
 //
 // - group (in process type): group of processes that depend on each other. If a
 // process type fails, it will halt all others in the same group. If the
-// "restart" paramater is not set to "always" or "fail", the affected process
+// "restart" parameter is not set to "always" or "fail", the affected process
 // types will halt and not restart.
 //
 // - sticky (in build process types): a sticky build is not interrupted when
