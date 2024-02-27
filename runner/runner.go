@@ -206,7 +206,7 @@ func (r *Runner) Start(rootCtx context.Context) error {
 	})
 	nameDict := make(map[string]struct{})
 	for _, proc := range r.Processes {
-		name := proc.Name
+		var name string
 		if formation, ok := r.Formation[proc.Name]; ok {
 			name = fmt.Sprintf("%v.%v", proc.Name, formation)
 		} else {
