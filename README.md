@@ -1,6 +1,6 @@
 # Runner
 
-[![GoDoc](https://godoc.org/cirello.io/runner/runner?status.svg)](https://godoc.org/cirello.io/runner/runner)
+[![GoDoc](https://pkg.go.dev/badge/cirello.io/runner/runner)](https://pkg.go.dev/cirello.io/runner/runner)
 [![Go Report Card](https://goreportcard.com/badge/cirello.io/runner)](https://goreportcard.com/report/cirello.io/runner)
 [![License](https://img.shields.io/badge/license-apache%202.0-blue.svg)](https://choosealicense.com/licenses/apache-2.0/)
 
@@ -139,4 +139,4 @@ enforced.
 ## Installation
 `go get [-u -f] cirello.io/runner`
 
-http://godoc.org/cirello.io/runner
+http://pkg.go.dev/cirello.io/runner
