@@ -27,7 +27,6 @@ import (
 	"log"
 	"net"
 	"os"
-	"os/exec"
 	"slices"
 	"strings"
 	"sync"
@@ -458,7 +457,7 @@ func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, p
 			fmt.Fprintln(pw, "listening on", port)
 		}
 		fmt.Fprintln(pw)
-		c := exec.CommandContext(ctx, "sh", "-c", cmd)
+		c := commandContext(ctx, cmd)
 		c.Dir = r.WorkDir
 
 		c.Env = os.Environ()
