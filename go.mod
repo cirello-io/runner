@@ -7,7 +7,7 @@ require (
 	github.com/buildkite/terminal-to-html v3.2.0+incompatible
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/google/go-cmp v0.6.0
-	github.com/urfave/cli v1.22.14
+	github.com/urfave/cli v1.22.15
 	nhooyr.io/websocket v1.8.11
 )
 
