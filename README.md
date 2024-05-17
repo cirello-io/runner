@@ -1,7 +1,6 @@
 # Runner
 
 [![GoDoc](https://pkg.go.dev/badge/cirello.io/runner/runner)](https://pkg.go.dev/cirello.io/runner/runner)
-[![Go Report Card](https://goreportcard.com/badge/cirello.io/runner)](https://goreportcard.com/report/cirello.io/runner)
 [![License](https://img.shields.io/badge/license-apache%202.0-blue.svg)](https://choosealicense.com/licenses/apache-2.0/)
 
 runner is a structured command executer that monitor file changes to trigger
@@ -139,4 +138,4 @@ enforced.
 ## Installation
 `go get cirello.io/runner`
 
-http://pkg.go.dev/cirello.io/runner
+https://pkg.go.dev/cirello.io/runner
