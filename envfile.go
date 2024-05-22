@@ -16,6 +16,7 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -24,15 +25,12 @@ import (
 func parseEnvFile(r io.Reader) ([]string, error) {
 	var env []string
 	scanner := bufio.NewScanner(r)
-scannerLoop:
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if strings.HasPrefix(line, "#") {
 			continue
 		}
-
 		r := bufio.NewReader(strings.NewReader(line))
-
 		key, err := r.ReadString('=')
 		if err != nil {
 			continue
@@ -44,44 +42,35 @@ scannerLoop:
 		if strings.HasPrefix(strings.ToLower(key), "export ") {
 			key = key[7:]
 		}
-
-		valueStart, err := r.ReadByte()
-		if err != nil {
-			continue
-		}
+		var (
+			value         string
+			isEscaped     bool
+			inSingleQuote bool
+			inDoubleQuote bool
+		)
 		for {
-			if valueStart != ' ' {
+			c, err := r.ReadByte()
+			if errors.Is(err, io.EOF) {
 				break
 			}
-			valueStart, err = r.ReadByte()
-			if err != nil {
-				continue scannerLoop
+			if c == '#' && !inSingleQuote && !inDoubleQuote {
+				break
 			}
+			if c == '\\' && !isEscaped {
+				isEscaped = true
+				continue
+			}
+			if c == '\'' && !inDoubleQuote && !isEscaped {
+				inSingleQuote = !inSingleQuote
+				continue
+			}
+			if c == '"' && !inSingleQuote && !isEscaped {
+				inDoubleQuote = !inDoubleQuote
+				continue
+			}
+			isEscaped = false
+			value += string(c)
 		}
-
-		var value string
-		switch valueStart {
-		case '"':
-			v, err := r.ReadString('"')
-			if err != nil {
-				continue
-			}
-			value += v[:len(v)-1]
-		case '\'':
-			v, err := r.ReadString('\'')
-			if err != nil {
-				continue
-			}
-			value += v[:len(v)-1]
-		default:
-			v, err := r.ReadString('#')
-			if err != nil {
-				continue
-			}
-			value += string(valueStart)
-			value += strings.TrimSuffix(v, "#")
-		}
-
 		env = append(env, fmt.Sprintf("%v=%v", strings.TrimSpace(key), strings.TrimSpace(value)))
 	}
 	if err := scanner.Err(); err != nil {

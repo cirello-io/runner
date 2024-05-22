@@ -1,0 +1,12 @@
+-- .env --
+foo#key=bar
+foo=bar # baz
+bar=foo#baz
+baz="foo#bar"
+export VAR="123"
+quote='single'
+quoteHash= 'si\'ngle#' #banana
+quoteHash2= 'si\\ngle#' #banana
+
+-- expected --
+[foo=bar bar=foo baz=foo#bar VAR=123 quote=single quoteHash=si'ngle# quoteHash2=si\ngle#]
