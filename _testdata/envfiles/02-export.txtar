@@ -1,0 +1,9 @@
+-- .env --
+# Full line comment
+foo=bar # baz
+bar=foo#baz
+baz="foo"#bar
+export VAR="123"
+
+-- expected --
+[foo=bar bar=foo baz=foo VAR=123]

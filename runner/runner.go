@@ -462,7 +462,7 @@ func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, p
 
 		c.Env = os.Environ()
 		if len(r.BaseEnvironment) > 0 {
-			c.Env = r.BaseEnvironment
+			c.Env = append(c.Env, r.BaseEnvironment...)
 		}
 		c.Env = append(c.Env, fmt.Sprintf("PS=%v", procName))
 		if portCount > -1 {

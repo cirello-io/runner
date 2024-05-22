@@ -63,7 +63,7 @@ func run() {
 		},
 		cli.StringFlag{
 			Name:  "env",
-			Value: "",
+			Value: ".env",
 			Usage: "environment `file` to be loaded for all processes.",
 		},
 		cli.StringFlag{
@@ -209,17 +209,14 @@ func mainRunner(c *cli.Context) error {
 		if err != nil {
 			return fmt.Errorf("cannot open environment file (%v): %v", envFN, err)
 		}
-		scanner := bufio.NewScanner(fd)
-		for scanner.Scan() {
-			line := strings.Split(strings.TrimSpace(scanner.Text()), "=")
-			if len(line) != 2 {
-				continue
-			}
-			s.BaseEnvironment = append(s.BaseEnvironment, scanner.Text())
-		}
-		if err := scanner.Err(); err != nil {
+		baseEnv, err := parseEnvFile(fd)
+		if err != nil {
 			return fmt.Errorf("error reading environment file (%v): %v", envFN, err)
 		}
+		if err := fd.Close(); err != nil {
+			return fmt.Errorf("cannot close environment file reader (%v): %v", envFN, err)
+		}
+		s.BaseEnvironment = baseEnv
 	}
 
 	if skipProcs != "" {
