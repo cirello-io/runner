@@ -57,7 +57,7 @@ func TestParseEnvFile(t *testing.T) {
 			}
 			if strings.TrimSpace(fmt.Sprint(v)) != strings.TrimSpace(expected) {
 				t.Log("got:", strings.TrimSpace(fmt.Sprint(v)))
-				t.Log("expected:", strings.TrimSpace(fmt.Sprint(v)))
+				t.Log("expected:", strings.TrimSpace(expected))
 				t.Error("environment file parsing is broken")
 			}
 		})
