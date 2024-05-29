@@ -64,7 +64,7 @@ func run() {
 		cli.StringFlag{
 			Name:  "env",
 			Value: ".env",
-			Usage: "environment `file` to be loaded for all processes.",
+			Usage: "environment `file` to be loaded for all processes, if the file is absent, then this parameter is ignored.",
 		},
 		cli.StringFlag{
 			Name:  "skip",
@@ -206,17 +206,16 @@ func mainRunner(c *cli.Context) error {
 
 	if envFN != "" {
 		fd, err := os.Open(envFN)
-		if err != nil {
-			return fmt.Errorf("cannot open environment file (%v): %v", envFN, err)
+		if err == nil {
+			baseEnv, err := parseEnvFile(fd)
+			if err != nil {
+				return fmt.Errorf("error reading environment file (%v): %v", envFN, err)
+			}
+			if err := fd.Close(); err != nil {
+				return fmt.Errorf("cannot close environment file reader (%v): %v", envFN, err)
+			}
+			s.BaseEnvironment = baseEnv
 		}
-		baseEnv, err := parseEnvFile(fd)
-		if err != nil {
-			return fmt.Errorf("error reading environment file (%v): %v", envFN, err)
-		}
-		if err := fd.Close(); err != nil {
-			return fmt.Errorf("cannot close environment file reader (%v): %v", envFN, err)
-		}
-		s.BaseEnvironment = baseEnv
 	}
 
 	if skipProcs != "" {
