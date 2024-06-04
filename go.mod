@@ -8,7 +8,7 @@ require (
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/google/go-cmp v0.6.0
 	github.com/urfave/cli v1.22.15
-	golang.org/x/tools v0.21.0
+	golang.org/x/tools v0.22.0
 	nhooyr.io/websocket v1.8.11
 )
 
