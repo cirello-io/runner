@@ -247,15 +247,8 @@ func mainRunner(c *cli.Context) error {
 		s.WorkDir = wd
 	}
 
-	sigint := make(chan os.Signal, 1)
-	signal.Notify(sigint, os.Interrupt)
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
-	go func() {
-		<-sigint
-		log.Println("shutting down")
-		cancel()
-	}()
 
 	s.BasePort = basePort
 
