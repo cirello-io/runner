@@ -27,7 +27,7 @@ import (
 	"strings"
 
 	oversight "cirello.io/oversight/easy"
-	terminal "github.com/buildkite/terminal-to-html"
+	terminal "github.com/buildkite/terminal-to-html/v3"
 	"nhooyr.io/websocket"
 )
 
