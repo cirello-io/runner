@@ -350,7 +350,8 @@ procTypes:
 
 func logs() cli.Command {
 	return cli.Command{
-		Name: "logs",
+		Name:  "logs",
+		Usage: "Follows logs from running processes",
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  "filter",
