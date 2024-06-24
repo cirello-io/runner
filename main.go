@@ -85,9 +85,7 @@ import (
 	"nhooyr.io/websocket"
 )
 
-// DefaultProcfile is the file that runner will open by default if no custom
-// is given.
-const DefaultProcfile = "Procfile"
+const defaultProcfile = "Procfile"
 
 func main() {
 	log.SetFlags(0)
@@ -202,7 +200,7 @@ func mainRunner(c *cli.Context) error {
 		}
 	}()
 
-	fn := DefaultProcfile
+	fn := defaultProcfile
 	if argFn := c.Args().First(); argFn != "" {
 		fn = argFn
 	}
