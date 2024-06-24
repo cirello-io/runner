@@ -1,6 +1,6 @@
 module cirello.io/runner
 
-go 1.22
+go 1.22.0
 
 require (
 	cirello.io/oversight v1.3.0
