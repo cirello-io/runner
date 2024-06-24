@@ -83,8 +83,7 @@ in the format below:
 VARIABLENAME=VALUE
 VARIABLENAME=VALUE
 ```
-Note: one environment variable per line. If the environment file is set, the
-shell environment is discarded.
+Note: one environment variable per line.
 
 `-formation procTypeA=# procTypeB=# ... procTypeN=#` can be used to start more
 than one instance of a process type. It is commonly used to start many
