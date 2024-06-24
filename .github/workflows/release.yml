@@ -1,0 +1,110 @@
+name: Release Build
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build-macos-amd64:
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: 'stable'
+
+    - name: Compile Go code
+      run: GOOS=darwin GOARCH=amd64 go build -o runner
+
+    - name: Archive the build output
+      run: tar -czf runner.tar.gz runner
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./runner.tar.gz
+        asset_name: runner.darwin.amd64.tar.gz
+        asset_content_type: application/gzip
+
+  build-macos-arm64:
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: 'stable'
+
+    - name: Compile Go code
+      run: GOOS=darwin GOARCH=arm64 go build -o runner
+
+    - name: Archive the build output
+      run: tar -czf runner.tar.gz runner
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./runner.tar.gz
+        asset_name: runner.darwin.arm64.tar.gz
+        asset_content_type: application/gzip
+
+  build-windows-amd64:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: 'stable'
+
+    - name: Compile Go code
+      run: go build -o runner.exe
+
+    - name: Archive the build output
+      run: powershell Compress-Archive -Path runner.exe -DestinationPath runner.zip
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./runner.zip
+        asset_name: runner.windows.amd64.zip
+        asset_content_type: application/zip
+
+  build-windows-arm64:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: 'stable'
+
+    - name: Compile Go code
+      run: go build -o runner.exe
+
+    - name: Archive the build output
+      run: powershell Compress-Archive -Path runner.exe -DestinationPath runner.zip
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./runner.zip
+        asset_name: runner.windows.arm64.zip
+        asset_content_type: application/zip
