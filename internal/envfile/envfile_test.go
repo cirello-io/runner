@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package envfile
 
 import (
 	"bytes"
@@ -25,8 +25,8 @@ import (
 	"golang.org/x/tools/txtar"
 )
 
-func TestParseEnvFile(t *testing.T) {
-	err := filepath.Walk("_testdata/envfiles", func(path string, info fs.FileInfo, err error) error {
+func TestParse(t *testing.T) {
+	err := filepath.Walk("_testdata", func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -51,7 +51,7 @@ func TestParseEnvFile(t *testing.T) {
 			}
 		}
 		t.Run(path, func(t *testing.T) {
-			v, err := parseEnvFile(bytes.NewReader(envFile))
+			v, err := Parse(bytes.NewReader(envFile))
 			if err != nil {
 				t.Fatalf("cannot parse env file (%q): %v", path, err)
 			}

@@ -64,7 +64,7 @@
 // Although internally runner.Runner supports waitbefore and multi-command
 // processes, for simplicity of interface these features have been disabled in
 // Procfile parser.
-package procfile // import "cirello.io/runner/procfile"
+package procfile
 
 import (
 	"bufio"
@@ -73,7 +73,7 @@ import (
 	"strconv"
 	"strings"
 
-	"cirello.io/runner/runner"
+	"cirello.io/runner/internal/runner"
 )
 
 // Parse takes a reader that contains an extended Procfile.

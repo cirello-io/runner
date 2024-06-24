@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package envfile
 
 import (
 	"bufio"
@@ -22,7 +22,7 @@ import (
 	"strings"
 )
 
-func parseEnvFile(r io.Reader) ([]string, error) {
+func Parse(r io.Reader) ([]string, error) {
 	var env []string
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
