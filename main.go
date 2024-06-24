@@ -96,6 +96,7 @@ func main() {
 	app.Name = "runner"
 	app.Usage = "simple Procfile runner"
 	app.HideVersion = true
+	app.EnableBashCompletion = false
 	app.Flags = []cli.Flag{
 		cli.BoolFlag{
 			Name:  "convert",
