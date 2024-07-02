@@ -3,7 +3,7 @@ module cirello.io/runner
 go 1.22.0
 
 require (
-	cirello.io/oversight v1.3.0
+	cirello.io/oversight v1.3.1
 	github.com/buildkite/terminal-to-html/v3 v3.12.1
 	github.com/google/go-cmp v0.6.0
 	github.com/urfave/cli v1.22.15
