@@ -57,11 +57,9 @@ so.
 ```Shell
 runner - simple Procfile runner
 
-usage: runner [-convert] [Procfile]
+usage: runner [Procfile]
 
 Options:
-  -convert
-    	takes a declared Procfile and prints as JSON to standard output
   -env file
     	environment file to be loaded for all processes. (default ".env")
   -formation procTypeA=# procTypeB=# ... procTypeN=#
@@ -71,11 +69,6 @@ Options:
   -skip procTypeA procTypeB procTypeN
     	does not run some of the process types, format: procTypeA procTypeB procTypeN
 ```
-
-`-convert` allows you to generate a JSON version of the Procfile. This format
-is more verbose but allows for more options. It can be used to add more steps
-for each process type and to network readiness test before the first step, or
-before the last one. [Refer to this data structure to understand its possibilities.](https://pkg.go.dev/cirello.io/runner/runner#Runner)
 
 `-env file` loads the environment file common to all process types. It must be
 in the format below:

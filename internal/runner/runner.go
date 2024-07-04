@@ -83,21 +83,21 @@ const websocketLogForwarderBufferSize = 102400
 type ProcessType struct {
 	// Name of the process type. If the name is prefixed with "build" it is
 	// executed before the others.
-	Name string `json:"name"`
+	Name string
 
 	// Cmd are the commands necessary to start the process type. They are
 	// executed in sequence, each its own separated shell. No state is
 	// shared across commands.
-	Cmd []string `json:"cmd"`
+	Cmd []string
 
 	// WaitBefore is the network address or process type name that the
 	// process type waits to be available before initiating the process type
 	// start.
-	WaitBefore string `json:"waitbefore,omitempty"`
+	WaitBefore string
 
 	// WaitFor is the network address or process type name that the process
 	// type waits to be available before finalizing the start.
-	WaitFor string `json:"waitfor,omitempty"`
+	WaitFor string
 
 	// Restart is the flag that forces the process type to restart. It means
 	// that all steps are executed upon restart. This option does not apply
@@ -126,20 +126,20 @@ type ProcessType struct {
 type Runner struct {
 	// WorkDir is the working directory from which all commands are going
 	// to be executed.
-	WorkDir string `json:"workdir,omitempty"`
+	WorkDir string
 
 	// Observables are the filepath.Match() patterns used to scan for files
 	// with changes. File patterns preceded with exclamation mark (!) will
 	// not trigger builds.
-	Observables []string `json:"observables,omitempty"`
+	Observables []string
 
 	// SkipDirs are the directory names that are ignored during changed file
 	// scanning.
-	SkipDirs []string `json:"skipdir,omitempty"`
+	SkipDirs []string
 
 	// Processes is the list of processes necessary to start this
 	// application.
-	Processes []*ProcessType `json:"procs"`
+	Processes []*ProcessType
 
 	// BasePort is the IP port number used to calculate an IP port for each
 	// process type and set to its $PORT environment variable. Build

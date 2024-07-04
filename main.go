@@ -73,7 +73,6 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -96,10 +95,6 @@ func main() {
 	app.HideVersion = true
 	app.EnableBashCompletion = false
 	app.Flags = []cli.Flag{
-		cli.BoolFlag{
-			Name:  "convert",
-			Usage: "takes a declared Procfile and prints as JSON to standard output",
-		},
 		cli.IntFlag{
 			Name:  "port",
 			Value: 5000,
@@ -146,7 +141,6 @@ func main() {
 func mainRunner(c *cli.Context) error {
 	origStdout := os.Stdout
 	basePort := c.Int("port")
-	convertToJSON := c.Bool("convert")
 	envFN := c.String("env")
 	skipProcs := c.String("skip")
 	onlyProcs := c.String("only")
@@ -214,27 +208,9 @@ func mainRunner(c *cli.Context) error {
 		return errors.New("invalid IP port")
 	}
 
-	var s *runner.Runner
-
-	switch filepath.Ext(fn) {
-	case ".json":
-		if err := json.NewDecoder(fd).Decode(&s); err != nil {
-			return fmt.Errorf("cannot parse spec file (json): %v", err)
-		}
-	default:
-		s, err = procfile.Parse(fd)
-		if err != nil {
-			return fmt.Errorf("cannot parse spec file (procfile): %v", err)
-		}
-	}
-
-	if convertToJSON {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "    ")
-		if err := enc.Encode(&s); err != nil {
-			return fmt.Errorf("cannot encode procfile into JSON: %v", err)
-		}
-		return nil
+	s, err := procfile.Parse(fd)
+	if err != nil {
+		return fmt.Errorf("cannot parse spec file (procfile): %v", err)
 	}
 
 	s.WorkDir = os.ExpandEnv(s.WorkDir)
