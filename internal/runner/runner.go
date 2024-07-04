@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -369,7 +368,7 @@ func (r *Runner) runNonBuilds(rootCtx, ctx context.Context, changedFileName stri
 				loopSvcCtx := oversight.WithContext(rootCtx)
 				oversight.Add(loopSvcCtx, func(ctx context.Context) error {
 					<-ready
-					r.startProcess(ctx, sv, i, pc, changedFileName, ioutil.Discard)
+					r.startProcess(ctx, sv, i, pc, changedFileName, io.Discard)
 					return nil
 				}, oversight.RestartWith(oversight.Permanent()))
 				portCount++
@@ -377,7 +376,7 @@ func (r *Runner) runNonBuilds(rootCtx, ctx context.Context, changedFileName stri
 				temporarySvcCtx := oversight.WithContext(rootCtx)
 				oversight.Add(temporarySvcCtx, func(ctx context.Context) error {
 					<-ready
-					r.startProcess(ctx, sv, i, pc, changedFileName, ioutil.Discard)
+					r.startProcess(ctx, sv, i, pc, changedFileName, io.Discard)
 					return nil
 				}, oversight.RestartWith(oversight.Temporary()))
 				portCount++
@@ -394,7 +393,7 @@ func (r *Runner) runNonBuilds(rootCtx, ctx context.Context, changedFileName stri
 				}
 				oversight.Add(procCtx, func(ctx context.Context) error {
 					<-ready
-					ok := r.startProcess(ctx, sv, i, pc, changedFileName, ioutil.Discard)
+					ok := r.startProcess(ctx, sv, i, pc, changedFileName, io.Discard)
 					if !ok && sv.Restart == OnFailure {
 						return errors.New("restarting on failure")
 					}
