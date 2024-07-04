@@ -8,7 +8,6 @@ require (
 	github.com/google/go-cmp v0.6.0
 	github.com/urfave/cli v1.22.15
 	golang.org/x/tools v0.22.0
-	nhooyr.io/websocket v1.8.11
 )
 
 require (

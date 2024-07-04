@@ -28,7 +28,6 @@ import (
 
 	oversight "cirello.io/oversight/easy"
 	terminal "github.com/buildkite/terminal-to-html/v3"
-	"nhooyr.io/websocket"
 )
 
 func (r *Runner) subscribeLogFwd() <-chan LogMessage {
@@ -66,18 +65,18 @@ func (r *Runner) serveWeb(ctx context.Context) error {
 	go func() {
 		mux := http.NewServeMux()
 		mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
-			wsURL := url.URL{Scheme: "ws", Host: req.Host, Path: "/logs"}
-			query := wsURL.Query()
+			sseURL := url.URL{Scheme: "http", Host: req.Host, Path: "/logs"}
+			query := sseURL.Query()
 			query.Set("model", "html")
 			filter := req.URL.Query().Get("filter")
 			if filter != "" {
 				query.Set("filter", filter)
 			}
-			wsURL.RawQuery = query.Encode()
+			sseURL.RawQuery = query.Encode()
 			logsPage.Execute(w, struct {
 				URL    string
 				Filter string
-			}{wsURL.String(), filter})
+			}{sseURL.String(), filter})
 		})
 		mux.HandleFunc("/discovery", func(w http.ResponseWriter, _ *http.Request) {
 			enc := json.NewEncoder(w)
@@ -94,27 +93,33 @@ func (r *Runner) serveWeb(ctx context.Context) error {
 			mode := req.URL.Query().Get("mode")
 			stream := r.subscribeLogFwd()
 			defer r.unsubscribeLogFwd(stream)
-			c, err := websocket.Accept(w, req, nil)
-			if err != nil {
-				log.Print("upgrade:", err)
-				return
-			}
-			defer c.CloseNow()
-			for msg := range stream {
-				if filter != "" && !strings.Contains(msg.Name, filter) && !strings.Contains(msg.Line, filter) {
-					continue
-				}
-				if mode == "html" {
-					msg.Line = string(terminal.Render([]byte(msg.Line)))
-				}
-				b, err := json.Marshal(msg)
-				if err != nil {
-					log.Println("encode:", err)
-					break
-				}
-				if err = c.Write(req.Context(), websocket.MessageText, b); err != nil {
-					log.Println("write:", err)
-					break
+
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.Header().Set("Cache-Control", "no-cache")
+			w.Header().Set("Connection", "keep-alive")
+
+			for {
+				select {
+				case msg := <-stream:
+					if filter != "" && !strings.Contains(msg.Name, filter) && !strings.Contains(msg.Line, filter) {
+						continue
+					}
+					if mode == "html" {
+						msg.Line = string(terminal.Render([]byte(msg.Line)))
+					}
+					b, err := json.Marshal(msg)
+					if err != nil {
+						log.Println("encode:", err)
+						return
+					}
+					_, err = w.Write([]byte("data: " + string(b) + "\n\n"))
+					if err != nil {
+						log.Println("write:", err)
+						return
+					}
+					w.(http.Flusher).Flush()
+				case <-req.Context().Done():
+					return
 				}
 			}
 		})

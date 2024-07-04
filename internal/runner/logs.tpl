@@ -61,23 +61,22 @@ function trimOutput(){
 	}
 }
 function dial(){
-	var ws = new WebSocket("{{.URL}}");
-	ws.onclose = function(evt) {
-		setTimeout(function(){
-			print("reconnecting...")
-			dial()
-		}, 1000);
-	}
-	ws.onmessage = function(evt) {
+	var es = new EventSource("{{.URL}}");
+	es.onopen = function(evt) {
+		print("connected...");
+	};
+	es.onmessage = function(evt) {
 		var msg = JSON.parse(evt.data);
-		print(msg.paddedName+": "+msg.line, msg.name)
+		print(msg.paddedName + ": " + msg.line);
 		if (document.getElementById("autoScroll").checked){
-			window.scrollTo(0,document.body.scrollHeight);
+			window.scrollTo(0, document.body.scrollHeight);
 		}
-	}
-	ws.onerror = function(evt) {
+	};
+	es.onerror = function(evt) {
 		print("ERROR: " + evt.data, "error");
-	}
+		es.close();
+		setTimeout(dial, 1000);
+	};
 }
 var lastErr = ""
 function updateStatus(){

@@ -65,23 +65,24 @@ package main // import "cirello.io/runner"
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
 	"strings"
 	"sync"
-	"time"
 
 	"cirello.io/runner/internal/envfile"
 	"cirello.io/runner/internal/procfile"
 	"cirello.io/runner/internal/runner"
 	cli "github.com/urfave/cli"
-	"nhooyr.io/websocket"
 )
 
 const defaultProcfile = "Procfile"
@@ -337,7 +338,7 @@ func logs() cli.Command {
 			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 			defer stop()
 
-			u := url.URL{Scheme: "ws", Host: c.GlobalString("service-discovery"), Path: "/logs"}
+			u := url.URL{Scheme: "http", Host: c.GlobalString("service-discovery"), Path: "/logs"}
 			if filter := c.String("filter"); filter != "" {
 				query := u.Query()
 				query.Set("filter", filter)
@@ -346,46 +347,45 @@ func logs() cli.Command {
 			log.Printf("connecting to %s", u.String())
 
 			follow := func() (outErr error) {
-				ws, _, err := websocket.Dial(ctx, u.String(), nil)
+				req, err := http.NewRequestWithContext(ctx, "GET", u.String(), nil)
 				if err != nil {
-					return fmt.Errorf("cannot dial to service discovery endpoint: %v s", err)
+					return fmt.Errorf("cannot create request: %v", err)
 				}
-				defer func() {
-					err := ws.CloseNow()
-					if outErr == nil && err != nil {
-						outErr = err
-					}
-				}()
 
-				done := make(chan struct{})
-				go func() {
-					defer close(done)
-					for {
-						_, message, err := ws.Read(ctx)
-						if err != nil {
-							log.Println("read:", err)
-							return
-						}
-						var msg runner.LogMessage
-						if err := json.Unmarshal(message, &msg); err != nil {
-							log.Println("decode:", err)
-							continue
-						}
-						fmt.Println(msg.PaddedName+":", msg.Line)
-					}
-				}()
+				resp, err := http.DefaultClient.Do(req)
+				if err != nil {
+					return fmt.Errorf("cannot connect to service discovery endpoint: %v", err)
+				}
+				defer resp.Body.Close()
+
+				if resp.StatusCode != http.StatusOK {
+					return fmt.Errorf("bad status: %s", resp.Status)
+				}
+
+				br := bufio.NewReaderSize(resp.Body, 10*1024*1024)
 				for {
 					select {
-					case <-done:
-						return nil
 					case <-ctx.Done():
-						log.Println("interrupt")
-						ws.Close(websocket.StatusNormalClosure, "")
-						select {
-						case <-done:
-						case <-time.After(time.Second):
-						}
 						return nil
+					default:
+						l, partialRead, err := br.ReadLine()
+						if errors.Is(err, io.EOF) {
+							return nil
+						} else if err != nil {
+							return err
+						} else if partialRead {
+							return fmt.Errorf("partial read: %v", string(l))
+						}
+						l = bytes.TrimSpace(bytes.TrimPrefix(l, []byte("data: ")))
+						if len(l) == 0 {
+							continue
+						}
+						var msg runner.LogMessage
+						if err := json.Unmarshal(l, &msg); err != nil {
+							log.Println("decode:", err)
+							return err
+						}
+						fmt.Println(msg.PaddedName+":", msg.Line)
 					}
 				}
 			}
