@@ -60,10 +60,6 @@
 //
 // - optional (in process types): does not start this process unless explicit
 // told so.
-//
-// Although internally runner.Runner supports waitbefore and multi-command
-// processes, for simplicity of interface these features have been disabled in
-// Procfile parser.
 package procfile
 
 import (

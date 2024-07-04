@@ -73,13 +73,11 @@ const websocketLogForwarderBufferSize = 102400
 
 // ProcessType is the piece of software you want to start. Cmd accepts multiple
 // commands. All commands are executed in order of declaration. The last command
-// is considered the call which activates the process type. If WaitBefore is
+// is considered the call which activates the process type. If WaitFor is
 // defined, it will wait for network readiness on the defined target before
-// executing the first command. If WaitFor is defined, it will wait for network
-// readiness on the defined target before executing the last command. Process
-// types named with prefix "build" are special, they are executed first in
-// preparation for all other process types, upon their completion the
-// application initialized.
+// executing the last command. Process types named with prefix "build" are
+// special, they are executed first in preparation for all other process types,
+// upon their completion the application initialized.
 type ProcessType struct {
 	// Name of the process type. If the name is prefixed with "build" it is
 	// executed before the others.
@@ -89,11 +87,6 @@ type ProcessType struct {
 	// executed in sequence, each its own separated shell. No state is
 	// shared across commands.
 	Cmd []string
-
-	// WaitBefore is the network address or process type name that the
-	// process type waits to be available before initiating the process type
-	// start.
-	WaitBefore string
 
 	// WaitFor is the network address or process type name that the process
 	// type waits to be available before finalizing the start.
@@ -490,11 +483,8 @@ func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, p
 		r.prefixedPrinter(ctx, io.TeeReader(stderrPipe, buf), procName)
 		r.prefixedPrinter(ctx, io.TeeReader(stdoutPipe, buf), procName)
 
-		isFirstCommand := idx == 0
 		isLastCommand := idx+1 == len(sv.Cmd)
-		if isFirstCommand && sv.WaitBefore != "" {
-			r.waitFor(ctx, pw, sv.WaitBefore)
-		} else if isLastCommand && sv.WaitFor != "" {
+		if isLastCommand && sv.WaitFor != "" {
 			r.waitFor(ctx, pw, sv.WaitFor)
 		}
 

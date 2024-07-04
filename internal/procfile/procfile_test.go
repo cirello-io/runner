@@ -48,43 +48,43 @@ malformed-line`
 	expected.SkipDirs = []string{"/vendor"}
 	expected.Processes = []*runner.ProcessType{
 		{
-			Name:       "build-server",
-			Cmd:        []string{"make server"},
-			WaitBefore: "",
-			WaitFor:    "",
+			Name: "build-server",
+			Cmd:  []string{"make server"},
+
+			WaitFor: "",
 		},
 		{
 			Name: "web",
 			Cmd: []string{
 				"./server serve",
 			},
-			WaitBefore: "",
-			WaitFor:    "localhost:8888",
-			Restart:    runner.Always,
-			Group:      "service",
+
+			WaitFor: "localhost:8888",
+			Restart: runner.Always,
+			Group:   "service",
 		},
 		{
 			Name: "web2",
 			Cmd: []string{
 				"./server serve",
 			},
-			WaitBefore: "",
-			WaitFor:    "localhost:8888",
-			Restart:    runner.OnFailure,
-			Group:      "service",
-			Sticky:     true,
+
+			WaitFor: "localhost:8888",
+			Restart: runner.OnFailure,
+			Group:   "service",
+			Sticky:  true,
 		},
 		{
 			Name: "web3",
 			Cmd: []string{
 				"./server serve",
 			},
-			WaitBefore: "",
-			WaitFor:    "localhost:8888",
-			Restart:    runner.OnFailure,
-			Group:      "service",
-			Sticky:     true,
-			Optional:   true,
+
+			WaitFor:  "localhost:8888",
+			Restart:  runner.OnFailure,
+			Group:    "service",
+			Sticky:   true,
+			Optional: true,
 		},
 	}
 	expected.Formation = map[string]int{
