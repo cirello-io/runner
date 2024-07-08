@@ -1,8 +1,8 @@
 cirello.io/oversight v1.4.0 h1:wYxebS4OGYQz/c/kcGcqxINPuJDbLNnVloQIsdSWua0=
 cirello.io/oversight v1.4.0/go.mod h1:gDVpsAKKoNtDhEWd1PjD4yBE6r6y5bXSHpOQ2joJF6E=
 github.com/BurntSushi/toml v1.3.2/go.mod h1:CxXYINrC8qIiEnFrOxCa7Jy5BFHlXnUU2pbicEuybxQ=
-github.com/buildkite/terminal-to-html/v3 v3.13.0 h1:TBRfvqZWoIpxxiiM9rdIn2bbI7pwxBjlQf8/cbLJnss=
-github.com/buildkite/terminal-to-html/v3 v3.13.0/go.mod h1:33sojHDaRBSMwwkKXPEkb5Uc7LKF79rWGurL3ei/GX0=
+github.com/buildkite/terminal-to-html/v3 v3.14.0 h1:mW+Lvhn1uEfbH4jsg4m0wfgquq2o3S14xtJD4M7tk8k=
+github.com/buildkite/terminal-to-html/v3 v3.14.0/go.mod h1:33sojHDaRBSMwwkKXPEkb5Uc7LKF79rWGurL3ei/GX0=
 github.com/cpuguy83/go-md2man/v2 v2.0.4 h1:wfIWP927BUkWJb2NmU/kNDYIBTh/ziUX91+lVfRxZq4=
 github.com/cpuguy83/go-md2man/v2 v2.0.4/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
