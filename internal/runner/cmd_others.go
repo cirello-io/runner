@@ -18,10 +18,22 @@
 package runner
 
 import (
-	"context"
 	"os/exec"
+	"syscall"
+	"time"
 )
 
-func commandContext(ctx context.Context, cmd string) *exec.Cmd {
-	return exec.CommandContext(ctx, "sh", "-c", cmd)
+func commandContext(cmd string) (*exec.Cmd, func() error) {
+	c := exec.Command("sh", "-c", cmd)
+	c.WaitDelay = 1 * time.Minute
+	c.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	return c, func() error {
+		if err := syscall.Kill(-c.Process.Pid, syscall.SIGKILL); err != nil {
+			return err
+		}
+		if err := c.Process.Kill(); err != nil {
+			return err
+		}
+		return nil
+	}
 }

@@ -83,10 +83,8 @@ type ProcessType struct {
 	// executed before the others.
 	Name string
 
-	// Cmd are the commands necessary to start the process type. They are
-	// executed in sequence, each its own separated shell. No state is
-	// shared across commands.
-	Cmd []string
+	// Cmd is the command necessary to start the process type.
+	Cmd string
 
 	// WaitFor is the network address or process type name that the process
 	// type waits to be available before finalizing the start.
@@ -443,55 +441,62 @@ func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, p
 	defer pw.Close()
 	defer pr.Close()
 
-	for idx, cmd := range sv.Cmd {
-		fmt.Fprintln(pw, "running", `"`+cmd+`"`)
-		defer fmt.Fprintln(pw, "finished", `"`+cmd+`"`)
-		if portCount > -1 {
-			fmt.Fprintln(pw, "listening on", port)
-		}
-		fmt.Fprintln(pw)
-		c := commandContext(ctx, cmd)
-		c.Dir = r.WorkDir
+	cmd := sv.Cmd
 
-		c.Env = os.Environ()
-		if len(r.BaseEnvironment) > 0 {
-			c.Env = append(c.Env, r.BaseEnvironment...)
-		}
-		c.Env = append(c.Env, fmt.Sprintf("PS=%v", procName))
-		if portCount > -1 {
-			c.Env = append(c.Env, fmt.Sprintf("PORT=%d", port))
-		}
+	fmt.Fprintln(pw, "running", `"`+cmd+`"`)
+	defer fmt.Fprintln(pw, "finished", `"`+cmd+`"`)
+	if portCount > -1 {
+		fmt.Fprintln(pw, "listening on", port)
+	}
+	fmt.Fprintln(pw)
+	c, stopCmd := commandContext(cmd)
+	c.Dir = r.WorkDir
 
-		if r.ServiceDiscoveryAddr != "" {
-			c.Env = append(c.Env, fmt.Sprintf("DISCOVERY=%v", r.ServiceDiscoveryAddr))
-			c.Env = append(c.Env, r.staticServiceDiscovery...)
-		}
+	c.Env = os.Environ()
+	if len(r.BaseEnvironment) > 0 {
+		c.Env = append(c.Env, r.BaseEnvironment...)
+	}
+	c.Env = append(c.Env, fmt.Sprintf("PS=%v", procName))
+	if portCount > -1 {
+		c.Env = append(c.Env, fmt.Sprintf("PORT=%d", port))
+	}
 
-		c.Env = append(c.Env, fmt.Sprintf("CHANGED_FILENAME=%v", changedFileName))
+	if r.ServiceDiscoveryAddr != "" {
+		c.Env = append(c.Env, fmt.Sprintf("DISCOVERY=%v", r.ServiceDiscoveryAddr))
+		c.Env = append(c.Env, r.staticServiceDiscovery...)
+	}
 
-		stderrPipe, err := c.StderrPipe()
-		if err != nil {
-			fmt.Fprintln(pw, "cannot open stderr pipe", procName, cmd, err)
-			continue
-		}
-		stdoutPipe, err := c.StdoutPipe()
-		if err != nil {
-			fmt.Fprintln(pw, "cannot open stdout pipe", procName, cmd, err)
-			continue
-		}
+	c.Env = append(c.Env, fmt.Sprintf("CHANGED_FILENAME=%v", changedFileName))
 
-		r.prefixedPrinter(ctx, io.TeeReader(stderrPipe, buf), procName)
-		r.prefixedPrinter(ctx, io.TeeReader(stdoutPipe, buf), procName)
+	stderrPipe, err := c.StderrPipe()
+	if err != nil {
+		fmt.Fprintln(pw, "cannot open stderr pipe", procName, cmd, err)
+		return false
+	}
+	stdoutPipe, err := c.StdoutPipe()
+	if err != nil {
+		fmt.Fprintln(pw, "cannot open stdout pipe", procName, cmd, err)
+		return false
+	}
 
-		isLastCommand := idx+1 == len(sv.Cmd)
-		if isLastCommand && sv.WaitFor != "" {
-			r.waitFor(ctx, pw, sv.WaitFor)
-		}
+	r.prefixedPrinter(ctx, io.TeeReader(stderrPipe, buf), procName)
+	r.prefixedPrinter(ctx, io.TeeReader(stdoutPipe, buf), procName)
 
-		if err := c.Run(); err != nil {
-			fmt.Fprintf(pw, "exec error %s: (%s) %v\n", procName, cmd, err)
-			return false
+	if sv.WaitFor != "" {
+		r.waitFor(ctx, pw, sv.WaitFor)
+	}
+	done := make(chan struct{})
+	go func() {
+		select {
+		case <-ctx.Done():
+			stopCmd()
+		case <-done:
 		}
+	}()
+	defer close(done)
+	if err := c.Run(); err != nil {
+		fmt.Fprintf(pw, "exec error %s: (%s) %v\n", procName, cmd, err)
+		return false
 	}
 	return true
 }

@@ -145,7 +145,7 @@ func Parse(r io.Reader) (*runner.Runner, error) {
 				}
 				command = append(command, part)
 			}
-			proc.Cmd = []string{strings.TrimSpace(strings.Join(command, " "))}
+			proc.Cmd = strings.TrimSpace(strings.Join(command, " "))
 			rnr.Processes = append(rnr.Processes, &proc)
 		}
 	}

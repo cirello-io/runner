@@ -18,10 +18,19 @@
 package runner
 
 import (
-	"context"
+	"os"
 	"os/exec"
 )
 
-func commandContext(ctx context.Context, cmd string) *exec.Cmd {
-	return exec.CommandContext(ctx, "cmd", "/c", cmd)
+func commandContext(cmd string) (*exec.Cmd, func() error) {
+	c := exec.Command("cmd", "/c", cmd)
+	return c, func() error {
+		if err := c.Process.Signal(os.Interrupt); err != nil {
+			return err
+		}
+		if err := c.Process.Kill(); err != nil {
+			return err
+		}
+		return nil
+	}
 }
