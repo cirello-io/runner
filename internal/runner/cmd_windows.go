@@ -25,6 +25,9 @@ import (
 func commandContext(cmd string) (*exec.Cmd, func() error) {
 	c := exec.Command("cmd", "/c", cmd)
 	return c, func() error {
+		if c.Process == nil {
+			return nil
+		}
 		if err := c.Process.Signal(os.Interrupt); err != nil {
 			return err
 		}
