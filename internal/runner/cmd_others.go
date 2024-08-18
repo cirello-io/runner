@@ -25,15 +25,16 @@ import (
 
 func commandContext(cmd string) (*exec.Cmd, func() error) {
 	c := exec.Command("sh", "-c", cmd)
-	c.WaitDelay = 1 * time.Minute
 	c.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	return c, func() error {
-		if err := syscall.Kill(-c.Process.Pid, syscall.SIGKILL); err != nil {
-			return err
+		if c.Process == nil {
+			return nil
 		}
-		if err := c.Process.Kill(); err != nil {
-			return err
-		}
+		pgid := -c.Process.Pid
+		_ = syscall.Kill(pgid, syscall.SIGINT)
+		time.AfterFunc(5*time.Second, func() {
+			_ = syscall.Kill(pgid, syscall.SIGKILL)
+		})
 		return nil
 	}
 }

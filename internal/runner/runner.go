@@ -233,13 +233,16 @@ func (r *Runner) Start(rootCtx context.Context) error {
 		return err
 	}
 
-	run := make(chan string)
+	run := make(chan string, 1)
 	fileHashes := make(map[string]string) // fn to hash
 	c, cancel := context.WithCancel(rootCtx)
+	done := make(chan struct{})
+	close(done)
 	for {
 		select {
 		case <-rootCtx.Done():
 			cancel()
+			<-done
 			return nil
 		case fn := <-updates:
 			newHash := calcFileHash(fn)
@@ -257,13 +260,20 @@ func (r *Runner) Start(rootCtx context.Context) error {
 
 			if l := len(updates); l == 0 {
 				cancel()
-				go func() { run <- fn }()
+				select {
+				case run <- fn:
+				default:
+				}
 			} else {
 				log.Println("builds pending before application start:", l)
 			}
 		case fn := <-run:
 			c, cancel = context.WithCancel(rootCtx)
-			go r.runNonBuilds(rootCtx, c, fn)
+			done = make(chan struct{})
+			go func() {
+				defer close(done)
+				r.runNonBuilds(rootCtx, c, fn)
+			}()
 		}
 	}
 }
@@ -331,6 +341,7 @@ func (r *Runner) runNonBuilds(rootCtx, ctx context.Context, changedFileName stri
 	groups := make(map[string]context.Context)
 	ready := make(chan struct{})
 
+	var wg sync.WaitGroup
 	for j, sv := range r.Processes {
 		if strings.HasPrefix(sv.Name, "build") {
 			continue
@@ -357,7 +368,9 @@ func (r *Runner) runNonBuilds(rootCtx, ctx context.Context, changedFileName stri
 
 			if sv.Restart == Loop && r.currentGeneration == 0 {
 				loopSvcCtx := oversight.WithContext(rootCtx)
+				wg.Add(1)
 				oversight.Add(loopSvcCtx, func(ctx context.Context) error {
+					defer wg.Done()
 					<-ready
 					r.startProcess(ctx, sv, i, pc, changedFileName, io.Discard)
 					return nil
@@ -365,7 +378,9 @@ func (r *Runner) runNonBuilds(rootCtx, ctx context.Context, changedFileName stri
 				portCount++
 			} else if sv.Restart == Temporary && r.currentGeneration == 0 {
 				temporarySvcCtx := oversight.WithContext(rootCtx)
+				wg.Add(1)
 				oversight.Add(temporarySvcCtx, func(ctx context.Context) error {
+					defer wg.Done()
 					<-ready
 					r.startProcess(ctx, sv, i, pc, changedFileName, io.Discard)
 					return nil
@@ -382,7 +397,9 @@ func (r *Runner) runNonBuilds(rootCtx, ctx context.Context, changedFileName stri
 				case OnFailure:
 					restart = oversight.Transient()
 				}
+				wg.Add(1)
 				oversight.Add(procCtx, func(ctx context.Context) error {
+					defer wg.Done()
 					<-ready
 					ok := r.startProcess(ctx, sv, i, pc, changedFileName, io.Discard)
 					if !ok && sv.Restart == OnFailure {
@@ -400,8 +417,8 @@ func (r *Runner) runNonBuilds(rootCtx, ctx context.Context, changedFileName stri
 	}
 	r.currentGeneration++
 	close(ready)
-
 	<-ctx.Done()
+	wg.Wait()
 }
 
 func discoveryEnvVar(name string, procCount int) string {
@@ -489,9 +506,9 @@ func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, p
 	go func() {
 		select {
 		case <-ctx.Done():
-			stopCmd()
 		case <-done:
 		}
+		stopCmd()
 	}()
 	defer close(done)
 	if err := c.Run(); err != nil {
