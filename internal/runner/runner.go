@@ -506,9 +506,9 @@ func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, p
 	go func() {
 		select {
 		case <-ctx.Done():
+			stopCmd()
 		case <-done:
 		}
-		stopCmd()
 	}()
 	defer close(done)
 	if err := c.Run(); err != nil {
