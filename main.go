@@ -55,6 +55,9 @@ process type fails, it will halt all others in the same group. If the
 "restart" parameter is not set to "always" or "fail", the affected process
 types will halt and not restart.
 
+- signal (in process types): "SIGTERM", "term", or "15" terminates the process;
+"SIGKILL", "kill", or "9" kills the process. The default is "SIGKILL".
+
 - sticky (in build process types): a sticky build is not interrupted when file
 changes are detected.
 
