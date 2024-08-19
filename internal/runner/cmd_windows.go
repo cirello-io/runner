@@ -22,11 +22,12 @@ import (
 	"os/exec"
 )
 
-func commandContext(cmd string) (*exec.Cmd, func() error) {
+func command(cmd string) (*exec.Cmd, func() error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	c := exec.CommandContext(ctx, "cmd", "/c", cmd)
 	return c, func() error {
 		cancel()
+		_ = c.Wait()
 		return nil
 	}
 }

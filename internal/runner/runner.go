@@ -236,13 +236,12 @@ func (r *Runner) Start(rootCtx context.Context) error {
 	run := make(chan string, 1)
 	fileHashes := make(map[string]string) // fn to hash
 	c, cancel := context.WithCancel(rootCtx)
-	done := make(chan struct{})
-	close(done)
+	var wg sync.WaitGroup
 	for {
 		select {
 		case <-rootCtx.Done():
 			cancel()
-			<-done
+			wg.Wait()
 			return nil
 		case fn := <-updates:
 			newHash := calcFileHash(fn)
@@ -269,9 +268,9 @@ func (r *Runner) Start(rootCtx context.Context) error {
 			}
 		case fn := <-run:
 			c, cancel = context.WithCancel(rootCtx)
-			done = make(chan struct{})
+			wg.Add(1)
 			go func() {
-				defer close(done)
+				defer wg.Done()
 				r.runNonBuilds(rootCtx, c, fn)
 			}()
 		}
@@ -466,7 +465,7 @@ func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, p
 		fmt.Fprintln(pw, "listening on", port)
 	}
 	fmt.Fprintln(pw)
-	c, stopCmd := commandContext(cmd)
+	c, stopCmd := command(cmd)
 	c.Dir = r.WorkDir
 
 	c.Env = os.Environ()

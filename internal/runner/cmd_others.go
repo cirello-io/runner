@@ -23,7 +23,7 @@ import (
 	"time"
 )
 
-func commandContext(cmd string) (*exec.Cmd, func() error) {
+func command(cmd string) (*exec.Cmd, func() error) {
 	c := exec.Command("sh", "-c", cmd)
 	c.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	return c, func() error {
@@ -31,10 +31,18 @@ func commandContext(cmd string) (*exec.Cmd, func() error) {
 			return nil
 		}
 		pgid := -c.Process.Pid
-		_ = syscall.Kill(pgid, syscall.SIGINT)
+		_ = syscall.Kill(pgid, syscall.SIGTERM)
+		exited := make(chan struct{})
+		defer close(exited)
 		time.AfterFunc(5*time.Second, func() {
-			_ = syscall.Kill(pgid, syscall.SIGKILL)
+			select {
+			case <-exited:
+				return
+			default:
+				_ = syscall.Kill(pgid, syscall.SIGKILL)
+			}
 		})
+		_ = c.Wait()
 		return nil
 	}
 }
