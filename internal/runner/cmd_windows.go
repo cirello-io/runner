@@ -22,10 +22,12 @@ import (
 	"os/exec"
 )
 
-func command(cmd string) (*exec.Cmd, func() error) {
+func command(cmd string, signal Signal) (*exec.Cmd, func() error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	c := exec.CommandContext(ctx, "cmd", "/c", cmd)
 	return c, func() error {
+		// Custom signal is not supported on Windows.
+		_ = signal
 		cancel()
 		_ = c.Wait()
 		return nil

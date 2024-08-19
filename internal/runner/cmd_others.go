@@ -20,10 +20,9 @@ package runner
 import (
 	"os/exec"
 	"syscall"
-	"time"
 )
 
-func command(cmd string) (*exec.Cmd, func() error) {
+func command(cmd string, signal Signal) (*exec.Cmd, func() error) {
 	c := exec.Command("sh", "-c", cmd)
 	c.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	return c, func() error {
@@ -31,17 +30,12 @@ func command(cmd string) (*exec.Cmd, func() error) {
 			return nil
 		}
 		pgid := -c.Process.Pid
-		_ = syscall.Kill(pgid, syscall.SIGTERM)
-		exited := make(chan struct{})
-		go func() {
-			defer close(exited)
-			_, _ = c.Process.Wait()
-		}()
-		select {
-		case <-exited:
-		case <-time.After(5 * time.Second):
-			_ = syscall.Kill(pgid, syscall.SIGKILL)
+		kill := syscall.SIGKILL
+		if signal == SignalTERM {
+			kill = syscall.SIGTERM
 		}
+		_ = c.Process.Signal(kill)
+		_ = syscall.Kill(pgid, kill)
 		return nil
 	}
 }

@@ -105,6 +105,9 @@ type ProcessType struct {
 	// Group is useful to contain restart to a subset of the process types.
 	Group string
 
+	// Signal indicates how a process should be halted.
+	Signal Signal
+
 	// Sticky processes are not interrupted by filesystem events.
 	Sticky bool
 
@@ -465,7 +468,7 @@ func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, p
 		fmt.Fprintln(pw, "listening on", port)
 	}
 	fmt.Fprintln(pw)
-	c, stopCmd := command(cmd)
+	c, stopCmd := command(cmd, sv.Signal)
 	c.Dir = r.WorkDir
 
 	c.Env = os.Environ()
@@ -664,4 +667,21 @@ func match(p, path string) bool {
 	}
 
 	return true
+}
+
+// Signal is the signal to be sent to the process.
+type Signal string
+
+const (
+	SignalTERM Signal = "term"
+	SignalKILL Signal = "kill"
+)
+
+func ParseSignal(s string) Signal {
+	switch strings.ToLower(s) {
+	case "sigterm", "term", "15":
+		return SignalTERM
+	default:
+		return SignalKILL
+	}
 }

@@ -55,6 +55,10 @@
 // "restart" parameter is not set to "always" or "fail", the affected process
 // types will halt and not restart.
 //
+// - signal (in process types): "SIGTERM", "term", or "15" terminates the
+// process; "SIGKILL", "kill", or "9" kills the process. The default is
+// "SIGKILL".
+//
 // - sticky (in build process types): a sticky build is not interrupted when
 // file changes are detected.
 //
@@ -133,6 +137,10 @@ func Parse(r io.Reader) (*runner.Runner, error) {
 				}
 				if strings.HasPrefix(part, "group=") {
 					proc.Group = strings.TrimPrefix(part, "group=")
+					continue
+				}
+				if strings.HasPrefix(part, "signal=") {
+					proc.Signal = runner.ParseSignal(strings.TrimPrefix(part, "signal="))
 					continue
 				}
 				if strings.HasPrefix(part, "optional=") {
