@@ -223,7 +223,9 @@ func (r *Runner) Start(rootCtx context.Context) error {
 	}
 	r.longestProcessTypeName++
 
-	go r.serveWeb(rootCtx)
+	if err := r.serveWeb(rootCtx); err != nil {
+		return fmt.Errorf("cannot serve discovery interface: %w", err)
+	}
 	go func() {
 		for msg := range r.logs {
 			r.logsMu.RLock()
