@@ -49,15 +49,13 @@ malformed-line`
 	expected.Processes = []*runner.ProcessType{
 		{
 			Name: "build-server",
-			Cmd:  []string{"make server"},
+			Cmd:  "make server",
 
 			WaitFor: "",
 		},
 		{
 			Name: "web",
-			Cmd: []string{
-				"./server serve",
-			},
+			Cmd:  "./server serve",
 
 			WaitFor: "localhost:8888",
 			Restart: runner.Always,
@@ -65,9 +63,7 @@ malformed-line`
 		},
 		{
 			Name: "web2",
-			Cmd: []string{
-				"./server serve",
-			},
+			Cmd:  "./server serve",
 
 			WaitFor: "localhost:8888",
 			Restart: runner.OnFailure,
@@ -76,9 +72,7 @@ malformed-line`
 		},
 		{
 			Name: "web3",
-			Cmd: []string{
-				"./server serve",
-			},
+			Cmd:  "./server serve",
 
 			WaitFor:  "localhost:8888",
 			Restart:  runner.OnFailure,
