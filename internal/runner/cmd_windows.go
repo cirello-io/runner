@@ -20,16 +20,9 @@ package runner
 import (
 	"context"
 	"os/exec"
+	"time"
 )
 
-func command(cmd string, signal Signal) (*exec.Cmd, func() error) {
-	ctx, cancel := context.WithCancel(context.Background())
-	c := exec.CommandContext(ctx, "cmd", "/c", cmd)
-	return c, func() error {
-		// Custom signal is not supported on Windows.
-		_ = signal
-		cancel()
-		_ = c.Wait()
-		return nil
-	}
+func command(ctx context.Context, cmd string, _ Signal, _ time.Duration) *exec.Cmd {
+	return exec.CommandContext(ctx, "cmd", "/c", cmd)
 }

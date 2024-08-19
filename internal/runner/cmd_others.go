@@ -18,24 +18,32 @@
 package runner
 
 import (
+	"context"
+	"fmt"
 	"os/exec"
 	"syscall"
+	"time"
 )
 
-func command(cmd string, signal Signal) (*exec.Cmd, func() error) {
-	c := exec.Command("sh", "-c", cmd)
+func command(ctx context.Context, cmd string, signal Signal, signalWait time.Duration) *exec.Cmd {
+	c := exec.CommandContext(ctx, "sh", "-c", cmd)
 	c.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	return c, func() error {
-		if c.Process == nil {
-			return nil
-		}
+	c.Cancel = func() error {
 		pgid := -c.Process.Pid
-		kill := syscall.SIGKILL
+		osSignal := syscall.SIGKILL
 		if signal == SignalTERM {
-			kill = syscall.SIGTERM
+			osSignal = syscall.SIGTERM
 		}
-		_ = c.Process.Signal(kill)
-		_ = syscall.Kill(pgid, kill)
+		if err := c.Process.Signal(osSignal); err != nil {
+			return fmt.Errorf("cannot signal process: %w", err)
+		}
+		if err := syscall.Kill(pgid, osSignal); err != nil {
+			return fmt.Errorf("cannot signal process group: %w", err)
+		}
+		if signalWait > 0 {
+			time.Sleep(signalWait)
+		}
 		return nil
 	}
+	return c
 }

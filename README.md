@@ -49,6 +49,9 @@ types will halt and not restart.
 - signal (in process types): "SIGTERM", "term", or "15" terminates the process;
 "SIGKILL", "kill", or "9" kills the process. The default is "SIGKILL".
 
+- signalWait (in process types): duration to wait after sending the signal to
+the process.
+
 - sticky (in build process types): a sticky build is not interrupted when file
 changes are detected.
 

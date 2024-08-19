@@ -108,6 +108,10 @@ type ProcessType struct {
 	// Signal indicates how a process should be halted.
 	Signal Signal
 
+	// SignalWait indicates how long to wait for a process to be finished
+	// before releasing it.
+	SignalWait time.Duration
+
 	// Sticky processes are not interrupted by filesystem events.
 	Sticky bool
 
@@ -468,7 +472,7 @@ func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, p
 		fmt.Fprintln(pw, "listening on", port)
 	}
 	fmt.Fprintln(pw)
-	c, stopCmd := command(cmd, sv.Signal)
+	c := command(ctx, cmd, sv.Signal, sv.SignalWait)
 	c.Dir = r.WorkDir
 
 	c.Env = os.Environ()
@@ -504,15 +508,6 @@ func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, p
 	if sv.WaitFor != "" {
 		r.waitFor(ctx, pw, sv.WaitFor)
 	}
-	done := make(chan struct{})
-	go func() {
-		select {
-		case <-ctx.Done():
-			stopCmd()
-		case <-done:
-		}
-	}()
-	defer close(done)
 	if err := c.Run(); err != nil {
 		fmt.Fprintf(pw, "exec error %s: (%s) %v\n", procName, cmd, err)
 		return false

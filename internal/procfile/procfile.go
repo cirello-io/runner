@@ -59,6 +59,9 @@
 // process; "SIGKILL", "kill", or "9" kills the process. The default is
 // "SIGKILL".
 //
+// - signalWait (in process types): duration to wait after sending the signal to
+// the process.
+//
 // - sticky (in build process types): a sticky build is not interrupted when
 // file changes are detected.
 //
@@ -72,6 +75,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"cirello.io/runner/internal/runner"
 )
@@ -141,6 +145,14 @@ func Parse(r io.Reader) (*runner.Runner, error) {
 				}
 				if strings.HasPrefix(part, "signal=") {
 					proc.Signal = runner.ParseSignal(strings.TrimPrefix(part, "signal="))
+					continue
+				}
+				if strings.HasPrefix(part, "signalWait=") {
+					signalWait, err := time.ParseDuration(strings.TrimPrefix(part, "signalWait="))
+					if err != nil {
+						return rnr, err
+					}
+					proc.SignalWait = signalWait
 					continue
 				}
 				if strings.HasPrefix(part, "optional=") {
