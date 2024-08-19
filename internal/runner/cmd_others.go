@@ -33,16 +33,15 @@ func command(cmd string) (*exec.Cmd, func() error) {
 		pgid := -c.Process.Pid
 		_ = syscall.Kill(pgid, syscall.SIGTERM)
 		exited := make(chan struct{})
-		defer close(exited)
-		time.AfterFunc(5*time.Second, func() {
-			select {
-			case <-exited:
-				return
-			default:
-				_ = syscall.Kill(pgid, syscall.SIGKILL)
-			}
-		})
-		_ = c.Wait()
+		go func() {
+			defer close(exited)
+			_, _ = c.Process.Wait()
+		}()
+		select {
+		case <-exited:
+		case <-time.After(5 * time.Second):
+			_ = syscall.Kill(pgid, syscall.SIGKILL)
+		}
 		return nil
 	}
 }
