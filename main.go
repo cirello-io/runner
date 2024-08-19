@@ -229,7 +229,7 @@ func mainRunner(c *cli.Context) error {
 		s.WorkDir = wd
 	}
 
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	ctx, cancel := signal.NotifyContext(context.Background(), haltSignals()...)
 	defer cancel()
 
 	s.BasePort = basePort
