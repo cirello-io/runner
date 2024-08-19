@@ -161,6 +161,8 @@ type Runner struct {
 	// variable named "DISCOVERY".
 	ServiceDiscoveryAddr string
 
+	Stdout io.Writer
+
 	sdMu                    sync.Mutex
 	dynamicServiceDiscovery map[string]string
 	staticServiceDiscovery  []string
@@ -552,7 +554,7 @@ func (r *Runner) prefixedPrinter(ctx context.Context, rdr io.Reader, name string
 	go func() {
 		for scanner.Scan() {
 			line := scanner.Text()
-			fmt.Println(paddedName+":", line)
+			fmt.Fprintln(r.Stdout, paddedName+":", line)
 			r.logs <- LogMessage{
 				PaddedName: paddedName,
 				Name:       name,
@@ -567,7 +569,7 @@ func (r *Runner) prefixedPrinter(ctx context.Context, rdr io.Reader, name string
 			return
 		default:
 			if err := scanner.Err(); err != nil && err != os.ErrClosed && err != io.ErrClosedPipe {
-				fmt.Println(paddedName+":", "error:", err)
+				fmt.Fprintln(r.Stdout, paddedName+":", "error:", err)
 			}
 		}
 	}()
