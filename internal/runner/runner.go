@@ -164,7 +164,6 @@ type Runner struct {
 	sdMu                    sync.Mutex
 	dynamicServiceDiscovery map[string]string
 	staticServiceDiscovery  []string
-	currentGeneration       int
 
 	logsMu         sync.RWMutex
 	logs           chan LogMessage
@@ -246,6 +245,11 @@ func (r *Runner) Start(rootCtx context.Context) error {
 	fileHashes := make(map[string]string) // fn to hash
 	c, cancel := context.WithCancel(rootCtx)
 	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		r.runEphemeral(rootCtx, "")
+	}()
 	for {
 		select {
 		case <-rootCtx.Done():
@@ -277,10 +281,11 @@ func (r *Runner) Start(rootCtx context.Context) error {
 			}
 		case fn := <-run:
 			c, cancel = context.WithCancel(rootCtx)
+			tree := r.runPermanent(fn)
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				r.runNonBuilds(rootCtx, c, fn)
+				tree.Start(c)
 			}()
 		}
 	}
@@ -344,7 +349,7 @@ func (r *Runner) runBuilds(ctx context.Context, fn string) bool {
 	return ok
 }
 
-func (r *Runner) runNonBuilds(rootCtx, ctx context.Context, changedFileName string) {
+func (r *Runner) runPermanent(changedFileName string) *oversight.Tree {
 	treeRoot := oversight.New(
 		oversight.WithRestartStrategy(oversight.OneForAll()),
 		oversight.NeverHalt())
@@ -375,7 +380,67 @@ func (r *Runner) runNonBuilds(rootCtx, ctx context.Context, changedFileName stri
 		portCount := j * 100
 		for i := 0; i < maxProc; i++ {
 			sv, i, pc := sv, i, portCount
-			if sv.Restart == Loop && r.currentGeneration == 0 {
+			if sv.Restart == Loop || sv.Restart == Temporary || sv.Restart == OnFailure {
+				continue
+			}
+			_ = tree.Add(oversight.ChildProcessSpecification{
+				Name:    sv.Name,
+				Restart: oversight.Permanent(),
+				Start: func(ctx context.Context) error {
+					<-ready
+					ok := r.startProcess(ctx, sv, i, pc, changedFileName, io.Discard)
+					if !ok && sv.Restart == OnFailure {
+						return errors.New("restarting on failure")
+					}
+					return nil
+				},
+			})
+			r.staticServiceDiscovery = append(
+				r.staticServiceDiscovery,
+				fmt.Sprintf("%s=localhost:%d", discoveryEnvVar(sv.Name, i), r.BasePort+portCount),
+			)
+			portCount++
+		}
+	}
+	for _, subTree := range subTrees {
+		_ = treeRoot.Add(subTree.Start)
+	}
+	close(ready)
+	return treeRoot
+}
+
+func (r *Runner) runEphemeral(ctx context.Context, changedFileName string) {
+	treeRoot := oversight.New(
+		oversight.WithRestartStrategy(oversight.OneForAll()),
+		oversight.NeverHalt())
+	subTrees := make(map[string]*oversight.Tree)
+	ready := make(chan struct{})
+	for j, sv := range r.Processes {
+		if strings.HasPrefix(sv.Name, "build") {
+			continue
+		}
+
+		maxProc := 1
+		if formation, ok := r.Formation[sv.Name]; ok {
+			maxProc = formation
+		}
+
+		tree := treeRoot
+		if sv.Group != "" {
+			subTree, ok := subTrees[sv.Group]
+			if !ok {
+				subTree = oversight.New(
+					oversight.WithRestartStrategy(oversight.OneForAll()),
+					oversight.NeverHalt())
+				subTrees[sv.Group] = subTree
+			}
+			tree = subTree
+		}
+
+		portCount := j * 100
+		for i := 0; i < maxProc; i++ {
+			sv, i, pc := sv, i, portCount
+			if sv.Restart == Loop {
 				_ = tree.Add(oversight.ChildProcessSpecification{
 					Name:    sv.Name,
 					Restart: oversight.Permanent(),
@@ -386,7 +451,7 @@ func (r *Runner) runNonBuilds(rootCtx, ctx context.Context, changedFileName stri
 					},
 				})
 				portCount++
-			} else if sv.Restart == Temporary && r.currentGeneration == 0 {
+			} else if sv.Restart == Temporary {
 				_ = tree.Add(oversight.ChildProcessSpecification{
 					Name:    sv.Name,
 					Restart: oversight.Temporary(),
@@ -397,33 +462,16 @@ func (r *Runner) runNonBuilds(rootCtx, ctx context.Context, changedFileName stri
 					},
 				})
 				portCount++
-			} else if sv.Restart == Temporary && r.currentGeneration != 0 {
-				portCount++
-				continue
-			} else {
-				restart := oversight.Temporary()
-				switch sv.Restart {
-				case Always:
-					restart = oversight.Permanent()
-				case OnFailure:
-					restart = oversight.Transient()
-				}
+			} else if sv.Restart == OnFailure {
 				_ = tree.Add(oversight.ChildProcessSpecification{
 					Name:    sv.Name,
-					Restart: restart,
+					Restart: oversight.Transient(),
 					Start: func(ctx context.Context) error {
 						<-ready
-						ok := r.startProcess(ctx, sv, i, pc, changedFileName, io.Discard)
-						if !ok && sv.Restart == OnFailure {
-							return errors.New("restarting on failure")
-						}
+						r.startProcess(ctx, sv, i, pc, changedFileName, io.Discard)
 						return nil
 					},
 				})
-				r.staticServiceDiscovery = append(
-					r.staticServiceDiscovery,
-					fmt.Sprintf("%s=localhost:%d", discoveryEnvVar(sv.Name, i), r.BasePort+portCount),
-				)
 				portCount++
 			}
 		}
@@ -431,7 +479,6 @@ func (r *Runner) runNonBuilds(rootCtx, ctx context.Context, changedFileName stri
 	for _, subTree := range subTrees {
 		_ = treeRoot.Add(subTree.Start)
 	}
-	r.currentGeneration++
 	close(ready)
 	_ = treeRoot.Start(ctx)
 }
