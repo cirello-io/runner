@@ -173,9 +173,9 @@ func mainRunner(c *cli.Context) error {
 			log.Println("reading standard output:", err)
 		}
 	}()
+	r, w, _ := os.Pipe()
+	os.Stdout = w
 	go func() {
-		r, w, _ := os.Pipe()
-		os.Stdout = w
 		scanner := bufio.NewScanner(r)
 		scanner.Buffer(make([]byte, 2097152), 262144)
 		for scanner.Scan() {
