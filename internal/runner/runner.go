@@ -241,6 +241,8 @@ func (r *Runner) Start(rootCtx context.Context) error {
 		return err
 	}
 
+	r.prepareStaticServiceDiscovery()
+
 	run := make(chan string, 1)
 	fileHashes := make(map[string]string) // fn to hash
 	c, cancel := context.WithCancel(rootCtx)
@@ -359,12 +361,10 @@ func (r *Runner) runPermanent(changedFileName string) *oversight.Tree {
 		if strings.HasPrefix(sv.Name, "build") {
 			continue
 		}
-
 		maxProc := 1
 		if formation, ok := r.Formation[sv.Name]; ok {
 			maxProc = formation
 		}
-
 		tree := treeRoot
 		if sv.Group != "" {
 			subTree, ok := subTrees[sv.Group]
@@ -376,7 +376,6 @@ func (r *Runner) runPermanent(changedFileName string) *oversight.Tree {
 			}
 			tree = subTree
 		}
-
 		portCount := j * 100
 		for i := 0; i < maxProc; i++ {
 			sv, i, pc := sv, i, portCount
@@ -395,10 +394,6 @@ func (r *Runner) runPermanent(changedFileName string) *oversight.Tree {
 					return nil
 				},
 			})
-			r.staticServiceDiscovery = append(
-				r.staticServiceDiscovery,
-				fmt.Sprintf("%s=localhost:%d", discoveryEnvVar(sv.Name, i), r.BasePort+portCount),
-			)
 			portCount++
 		}
 	}
@@ -481,6 +476,29 @@ func (r *Runner) runEphemeral(ctx context.Context, changedFileName string) {
 	}
 	close(ready)
 	_ = treeRoot.Start(ctx)
+}
+
+func (r *Runner) prepareStaticServiceDiscovery() {
+	for j, sv := range r.Processes {
+		if strings.HasPrefix(sv.Name, "build") {
+			continue
+		}
+		maxProc := 1
+		if formation, ok := r.Formation[sv.Name]; ok {
+			maxProc = formation
+		}
+		portCount := j * 100
+		for i := 0; i < maxProc; i++ {
+			if sv.Restart == Loop || sv.Restart == Temporary || sv.Restart == OnFailure {
+				continue
+			}
+			r.staticServiceDiscovery = append(
+				r.staticServiceDiscovery,
+				fmt.Sprintf("%s=localhost:%d", discoveryEnvVar(sv.Name, i), r.BasePort+portCount),
+			)
+			portCount++
+		}
+	}
 }
 
 func discoveryEnvVar(name string, procCount int) string {
