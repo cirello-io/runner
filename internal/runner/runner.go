@@ -32,7 +32,7 @@ import (
 	"sync"
 	"time"
 
-	oversight "cirello.io/oversight/easy"
+	oversight "cirello.io/oversight"
 )
 
 // ErrNonUniqueProcessTypeName is returned when starting the runner, it detects
@@ -345,11 +345,11 @@ func (r *Runner) runBuilds(ctx context.Context, fn string) bool {
 }
 
 func (r *Runner) runNonBuilds(rootCtx, ctx context.Context, changedFileName string) {
-	ctx = oversight.WithContext(ctx)
-	groups := make(map[string]context.Context)
+	treeRoot := oversight.New(
+		oversight.WithRestartStrategy(oversight.OneForAll()),
+		oversight.NeverHalt())
+	subTrees := make(map[string]*oversight.Tree)
 	ready := make(chan struct{})
-
-	var wg sync.WaitGroup
 	for j, sv := range r.Processes {
 		if strings.HasPrefix(sv.Name, "build") {
 			continue
@@ -360,39 +360,42 @@ func (r *Runner) runNonBuilds(rootCtx, ctx context.Context, changedFileName stri
 			maxProc = formation
 		}
 
-		procCtx := ctx
+		tree := treeRoot
 		if sv.Group != "" {
-			groupCtx, ok := groups[sv.Group]
+			subTree, ok := subTrees[sv.Group]
 			if !ok {
-				groupCtx = oversight.WithContext(ctx)
-				groups[sv.Group] = groupCtx
+				subTree = oversight.New(
+					oversight.WithRestartStrategy(oversight.OneForAll()),
+					oversight.NeverHalt())
+				subTrees[sv.Group] = subTree
 			}
-			procCtx = groupCtx
+			tree = subTree
 		}
 
 		portCount := j * 100
 		for i := 0; i < maxProc; i++ {
 			sv, i, pc := sv, i, portCount
-
 			if sv.Restart == Loop && r.currentGeneration == 0 {
-				loopSvcCtx := oversight.WithContext(rootCtx)
-				wg.Add(1)
-				oversight.Add(loopSvcCtx, func(ctx context.Context) error {
-					defer wg.Done()
-					<-ready
-					r.startProcess(ctx, sv, i, pc, changedFileName, io.Discard)
-					return nil
-				}, oversight.RestartWith(oversight.Permanent()))
+				_ = tree.Add(oversight.ChildProcessSpecification{
+					Name:    sv.Name,
+					Restart: oversight.Permanent(),
+					Start: func(ctx context.Context) error {
+						<-ready
+						r.startProcess(ctx, sv, i, pc, changedFileName, io.Discard)
+						return nil
+					},
+				})
 				portCount++
 			} else if sv.Restart == Temporary && r.currentGeneration == 0 {
-				temporarySvcCtx := oversight.WithContext(rootCtx)
-				wg.Add(1)
-				oversight.Add(temporarySvcCtx, func(ctx context.Context) error {
-					defer wg.Done()
-					<-ready
-					r.startProcess(ctx, sv, i, pc, changedFileName, io.Discard)
-					return nil
-				}, oversight.RestartWith(oversight.Temporary()))
+				_ = tree.Add(oversight.ChildProcessSpecification{
+					Name:    sv.Name,
+					Restart: oversight.Temporary(),
+					Start: func(ctx context.Context) error {
+						<-ready
+						r.startProcess(ctx, sv, i, pc, changedFileName, io.Discard)
+						return nil
+					},
+				})
 				portCount++
 			} else if sv.Restart == Temporary && r.currentGeneration != 0 {
 				portCount++
@@ -405,16 +408,18 @@ func (r *Runner) runNonBuilds(rootCtx, ctx context.Context, changedFileName stri
 				case OnFailure:
 					restart = oversight.Transient()
 				}
-				wg.Add(1)
-				oversight.Add(procCtx, func(ctx context.Context) error {
-					defer wg.Done()
-					<-ready
-					ok := r.startProcess(ctx, sv, i, pc, changedFileName, io.Discard)
-					if !ok && sv.Restart == OnFailure {
-						return errors.New("restarting on failure")
-					}
-					return nil
-				}, oversight.RestartWith(restart))
+				_ = tree.Add(oversight.ChildProcessSpecification{
+					Name:    sv.Name,
+					Restart: restart,
+					Start: func(ctx context.Context) error {
+						<-ready
+						ok := r.startProcess(ctx, sv, i, pc, changedFileName, io.Discard)
+						if !ok && sv.Restart == OnFailure {
+							return errors.New("restarting on failure")
+						}
+						return nil
+					},
+				})
 				r.staticServiceDiscovery = append(
 					r.staticServiceDiscovery,
 					fmt.Sprintf("%s=localhost:%d", discoveryEnvVar(sv.Name, i), r.BasePort+portCount),
@@ -423,10 +428,12 @@ func (r *Runner) runNonBuilds(rootCtx, ctx context.Context, changedFileName stri
 			}
 		}
 	}
+	for _, subTree := range subTrees {
+		_ = treeRoot.Add(subTree.Start)
+	}
 	r.currentGeneration++
 	close(ready)
-	<-ctx.Done()
-	wg.Wait()
+	_ = treeRoot.Start(ctx)
 }
 
 func discoveryEnvVar(name string, procCount int) string {
