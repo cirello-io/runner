@@ -96,7 +96,6 @@ const defaultProcfile = "Procfile"
 func main() {
 	log.SetFlags(0)
 	log.SetPrefix("runner: ")
-	log.SetOutput(&serialWriteCloser{w: os.Stderr})
 	app := cli.NewApp()
 	app.Name = "runner"
 	app.Usage = "simple Procfile runner"
@@ -147,7 +146,7 @@ func main() {
 }
 
 func mainRunner(c *cli.Context) error {
-	origStdout := &serialWriteCloser{w: os.Stdout}
+	origStdout := os.Stdout
 	basePort := c.Int("port")
 	envFN := c.String("env")
 	skipProcs := c.String("skip")
@@ -220,7 +219,6 @@ func mainRunner(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("cannot parse spec file (procfile): %v", err)
 	}
-	s.Stdout = origStdout
 
 	s.WorkDir = os.ExpandEnv(s.WorkDir)
 	if s.WorkDir == "" {
@@ -251,12 +249,12 @@ func mainRunner(c *cli.Context) error {
 	}
 
 	if skipProcs != "" {
-		s.Processes = filterSkippedProcs(origStdout, skipProcs, s.Processes)
+		s.Processes = filterSkippedProcs(skipProcs, s.Processes)
 	} else if onlyProcs != "" {
 		s.Processes = filterOnlyProcs(onlyProcs, s.Processes)
 	}
 	if optionalProcs != "" {
-		s.Processes = keepOptionalProcs(origStdout, optionalProcs, s.Processes)
+		s.Processes = keepOptionalProcs(optionalProcs, s.Processes)
 	} else {
 		s.Processes = filterOptionalProcs(s.Processes)
 	}
@@ -267,7 +265,7 @@ func mainRunner(c *cli.Context) error {
 	return nil
 }
 
-func keepOptionalProcs(stdout io.Writer, optionals string, processes []*runner.ProcessType) []*runner.ProcessType {
+func keepOptionalProcs(optionals string, processes []*runner.ProcessType) []*runner.ProcessType {
 	optionalProcs, newProcs := strings.Split(optionals, " "), []*runner.ProcessType{}
 procTypes:
 	for _, procType := range processes {
@@ -277,7 +275,7 @@ procTypes:
 		}
 		for _, optional := range optionalProcs {
 			if procType.Name == optional {
-				fmt.Fprintln(stdout, "enabling", optional)
+				fmt.Println("enabling", optional)
 				newProcs = append(newProcs, procType)
 				continue procTypes
 			}
@@ -303,13 +301,13 @@ func filterOptionalProcs(processes []*runner.ProcessType) []*runner.ProcessType 
 	return newProcs
 }
 
-func filterSkippedProcs(stdout io.Writer, skip string, processes []*runner.ProcessType) []*runner.ProcessType {
+func filterSkippedProcs(skip string, processes []*runner.ProcessType) []*runner.ProcessType {
 	skipProcs, newProcs := strings.Split(skip, " "), []*runner.ProcessType{}
 procTypes:
 	for _, procType := range processes {
 		for _, skip := range skipProcs {
 			if procType.Name == skip {
-				fmt.Fprintln(stdout, "skipping", skip)
+				fmt.Println("skipping", skip)
 				continue procTypes
 			}
 		}
@@ -408,21 +406,4 @@ func logs() cli.Command {
 			}
 		},
 	}
-}
-
-type serialWriteCloser struct {
-	mu sync.Mutex
-	w  io.WriteCloser
-}
-
-func (w *serialWriteCloser) Write(p []byte) (n int, err error) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	return w.w.Write(p)
-}
-
-func (w *serialWriteCloser) Close() error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	return w.w.Close()
 }
