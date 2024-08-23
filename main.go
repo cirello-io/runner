@@ -204,6 +204,9 @@ func mainRunner(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("cannot parse spec file (procfile): %v", err)
 	}
+	if err := fd.Close(); err != nil {
+		return fmt.Errorf("cannot close spec file reader (procfile): %v", err)
+	}
 	if basePort != 0 {
 		if basePort < 1 || basePort > 65535 {
 			return errors.New("invalid IP port")
