@@ -63,7 +63,7 @@ the process.
 - optional (in process types): does not start this process unless explicit told
 so. The process type must be part of a group.
 */
-package main // import "cirello.io/runner"
+package main // import "cirello.io/runner/v2"
 
 import (
 	"bufio"

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Package runner holds the building blocks for cmd runner.
-package runner // import "cirello.io/runner/runner"
+package runner
 
 import (
 	"bufio"

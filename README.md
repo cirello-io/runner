@@ -130,6 +130,6 @@ Non-compliant chars are replaced with an underscore (`_`) and name uniqueness is
 enforced.
 
 ## Installation
-`go get cirello.io/runner`
+`go get cirello.io/runner/v2`
 
-https://pkg.go.dev/cirello.io/runner
+https://pkg.go.dev/cirello.io/runner/v2
