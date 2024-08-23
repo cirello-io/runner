@@ -55,11 +55,6 @@
 // build; "fail" will restart the process type on failure; "loop" restart the
 // process when it naturally terminates; "temporary" runs the process only once.
 //
-// - group (in process type): group of processes that depend on each other. If a
-// process type fails, it will halt all others in the same group. If the
-// "restart" parameter is not set to "always" or "fail", the affected process
-// types will halt and not restart.
-//
 // - signal (in process types): "SIGTERM", "term", or "15" terminates the
 // process; "SIGKILL", "kill", or "9" kills the process. The default is
 // "SIGKILL".
@@ -148,10 +143,6 @@ func Parse(r io.Reader) (*runner.Runner, error) {
 				if strings.HasPrefix(part, "restart=") {
 					restartMode := strings.TrimPrefix(part, "restart=")
 					proc.Restart = runner.ParseRestartMode(restartMode)
-					continue
-				}
-				if strings.HasPrefix(part, "group=") {
-					proc.Group = strings.TrimPrefix(part, "group=")
 					continue
 				}
 				if strings.HasPrefix(part, "signal=") {

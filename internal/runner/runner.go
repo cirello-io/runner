@@ -101,10 +101,6 @@ type ProcessType struct {
 	// Temporary processes do not show up in the discovery service.
 	Restart RestartMode `json:"restart,omitempty"`
 
-	// Group defines to which supervisor group this process type belongs.
-	// Group is useful to contain restart to a subset of the process types.
-	Group string
-
 	// Signal indicates how a process should be halted.
 	Signal Signal
 
@@ -340,10 +336,9 @@ func (r *Runner) runBuilds(ctx context.Context, fn string) bool {
 }
 
 func (r *Runner) runPermanent(changedFileName string) *oversight.Tree {
-	treeRoot := oversight.New(
+	tree := oversight.New(
 		oversight.WithRestartStrategy(oversight.OneForAll()),
 		oversight.NeverHalt())
-	subTrees := make(map[string]*oversight.Tree)
 	ready := make(chan struct{})
 	for j, sv := range r.Processes {
 		if strings.HasPrefix(sv.Name, "build") {
@@ -352,17 +347,6 @@ func (r *Runner) runPermanent(changedFileName string) *oversight.Tree {
 		maxProc := 1
 		if formation, ok := r.Formation[sv.Name]; ok {
 			maxProc = formation
-		}
-		tree := treeRoot
-		if sv.Group != "" {
-			subTree, ok := subTrees[sv.Group]
-			if !ok {
-				subTree = oversight.New(
-					oversight.WithRestartStrategy(oversight.OneForAll()),
-					oversight.NeverHalt())
-				subTrees[sv.Group] = subTree
-			}
-			tree = subTree
 		}
 		portCount := j * 100
 		for i := 0; i < maxProc; i++ {
@@ -385,41 +369,23 @@ func (r *Runner) runPermanent(changedFileName string) *oversight.Tree {
 			portCount++
 		}
 	}
-	for _, subTree := range subTrees {
-		_ = treeRoot.Add(subTree.Start)
-	}
 	close(ready)
-	return treeRoot
+	return tree
 }
 
 func (r *Runner) runEphemeral(ctx context.Context, changedFileName string) {
-	treeRoot := oversight.New(
+	tree := oversight.New(
 		oversight.WithRestartStrategy(oversight.OneForAll()),
 		oversight.NeverHalt())
-	subTrees := make(map[string]*oversight.Tree)
 	ready := make(chan struct{})
 	for j, sv := range r.Processes {
 		if strings.HasPrefix(sv.Name, "build") {
 			continue
 		}
-
 		maxProc := 1
 		if formation, ok := r.Formation[sv.Name]; ok {
 			maxProc = formation
 		}
-
-		tree := treeRoot
-		if sv.Group != "" {
-			subTree, ok := subTrees[sv.Group]
-			if !ok {
-				subTree = oversight.New(
-					oversight.WithRestartStrategy(oversight.OneForAll()),
-					oversight.NeverHalt())
-				subTrees[sv.Group] = subTree
-			}
-			tree = subTree
-		}
-
 		portCount := j * 100
 		for i := 0; i < maxProc; i++ {
 			sv, i, pc := sv, i, portCount
@@ -459,11 +425,8 @@ func (r *Runner) runEphemeral(ctx context.Context, changedFileName string) {
 			}
 		}
 	}
-	for _, subTree := range subTrees {
-		_ = treeRoot.Add(subTree.Start)
-	}
 	close(ready)
-	_ = treeRoot.Start(ctx)
+	_ = tree.Start(ctx)
 }
 
 func (r *Runner) prepareStaticServiceDiscovery() {
