@@ -124,6 +124,9 @@ func main() {
 }
 
 func mainRunner(c *cli.Context) error {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
 	origStdout := os.Stdout
 	basePort := c.Int("port")
 	envFN := c.String("env")
@@ -205,9 +208,6 @@ func mainRunner(c *cli.Context) error {
 		}
 		s.WorkDir = wd
 	}
-
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
 
 	if envFN != "" {
 		fd, err := os.Open(envFN)
