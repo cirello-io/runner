@@ -159,9 +159,6 @@ func mainRunner(c *cli.Context) error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 	actualStdout := os.Stdout
-	basePort := c.Int("port")
-	envFN := c.String("env")
-	discoveryAddr := c.String("service-discovery")
 	var (
 		filterPatternMu sync.RWMutex
 		filterPattern   string
@@ -219,7 +216,8 @@ func mainRunner(c *cli.Context) error {
 	if err := fd.Close(); err != nil {
 		return fmt.Errorf("cannot close spec file reader (procfile): %v", err)
 	}
-	if basePort != 0 {
+	if c.IsSet("port") {
+		basePort := c.Int("port")
 		if basePort < 1 || basePort > 65535 {
 			return errors.New("invalid IP port")
 		}
@@ -254,7 +252,7 @@ func mainRunner(c *cli.Context) error {
 		}
 		s.WorkDir = wd
 	}
-	if envFN != "" {
+	if envFN := c.String("env"); envFN != "" {
 		fd, err := os.Open(envFN)
 		if err == nil {
 			baseEnv, err := envfile.Parse(fd)
@@ -267,7 +265,7 @@ func mainRunner(c *cli.Context) error {
 			s.BaseEnvironment = baseEnv
 		}
 	}
-	s.ServiceDiscoveryAddr = discoveryAddr
+	s.ServiceDiscoveryAddr = c.String("service-discovery")
 	if err := s.Start(ctx); err != nil {
 		return fmt.Errorf("cannot serve: %v", err)
 	}
