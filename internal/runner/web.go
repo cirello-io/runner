@@ -1,4 +1,4 @@
-// Copyright 2017 github.com/ucirello
+// Copyright 2024 github.com/ucirello, cirello.io, U. Cirello
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
