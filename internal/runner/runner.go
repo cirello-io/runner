@@ -216,7 +216,7 @@ func (r *Runner) Start(rootCtx context.Context) error {
 			r.logsMu.RUnlock()
 		}
 	}()
-	updates, err := r.monitorWorkDir()
+	updates, err := r.monitorWorkDir(rootCtx)
 	if err != nil {
 		return err
 	}
@@ -576,14 +576,15 @@ func (r *Runner) deleteServiceDiscovery(svc string) {
 	r.sdMu.Unlock()
 }
 
-func (s *Runner) monitorWorkDir() (<-chan string, error) {
+func (s *Runner) monitorWorkDir(ctx context.Context) (<-chan string, error) {
 	if _, err := os.Stat(s.WorkDir); err != nil {
 		return nil, err
 	}
 	triggereds := make(chan string, 1)
 	memo := make(map[string]time.Time)
 	go func() {
-		for {
+		t := backoff(ctx, 50*time.Millisecond, 250*time.Millisecond, 5*time.Second)
+		for range t {
 			_ = filepath.Walk(s.WorkDir, func(path string, info os.FileInfo, err error) error {
 				if err != nil {
 					return err
@@ -688,4 +689,35 @@ func command(ctx context.Context, cmd string, signal Signal, timeout time.Durati
 		return nil
 	}
 	return c
+}
+
+func backoff(ctx context.Context, base, retry, max time.Duration) <-chan struct{} {
+	t := make(chan struct{})
+	go func() {
+		defer close(t)
+		var retries uint64
+		for {
+			if ctx.Err() != nil {
+				return
+			}
+			var d time.Duration
+			select {
+			case t <- struct{}{}:
+				d = base + time.Duration(retries)*retry
+				if d > max {
+					d = max
+				}
+				retries++
+			default:
+				d = base
+				retries = 0
+			}
+			select {
+			case <-time.After(d):
+			case <-ctx.Done():
+			}
+		}
+
+	}()
+	return t
 }
