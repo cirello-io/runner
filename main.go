@@ -177,20 +177,16 @@ func mainRunner(c *cli.Context) error {
 		scanner.Buffer(make([]byte, 2097152), 262144)
 		for scanner.Scan() {
 			filterPatternMu.RLock()
-			p := filterPattern
+			pattern := filterPattern
 			filterPatternMu.RUnlock()
 			text := scanner.Text()
-			if p == "" {
+			if pattern == "" {
 				fmt.Fprintln(origStdout, text)
 				continue
 			}
-
-			words := strings.Fields(p)
-			for _, w := range words {
-				if strings.Contains(text, w) {
-					fmt.Fprintln(origStdout, text)
-					break
-				}
+			if strings.Contains(text, pattern) {
+				fmt.Fprintln(origStdout, text)
+				break
 			}
 		}
 		if err := scanner.Err(); err != nil {
