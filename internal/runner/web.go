@@ -30,9 +30,11 @@ import (
 	terminal "github.com/buildkite/terminal-to-html/v3"
 )
 
+const sseLogForwarderBufferSize = 102400
+
 func (r *Runner) subscribeLogFwd() <-chan LogMessage {
 	r.logsMu.Lock()
-	stream := make(chan LogMessage, websocketLogForwarderBufferSize)
+	stream := make(chan LogMessage, sseLogForwarderBufferSize)
 	r.logSubscribers = append(r.logSubscribers, stream)
 	r.logsMu.Unlock()
 	return stream

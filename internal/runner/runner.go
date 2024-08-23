@@ -71,8 +71,6 @@ const (
 	Never     RestartMode = ""
 )
 
-const websocketLogForwarderBufferSize = 102400
-
 // ProcessType is the piece of software you want to start. Cmd accepts multiple
 // commands. All commands are executed in order of declaration. The last command
 // is considered the call which activates the process type. If WaitFor is
@@ -181,7 +179,7 @@ func New() *Runner {
 	return &Runner{
 		Formation:               make(map[string]int),
 		dynamicServiceDiscovery: make(map[string]string),
-		logs:                    make(chan LogMessage, websocketLogForwarderBufferSize),
+		logs:                    make(chan LogMessage, sseLogForwarderBufferSize),
 	}
 }
 
