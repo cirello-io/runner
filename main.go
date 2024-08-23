@@ -162,7 +162,6 @@ func mainRunner(c *cli.Context) error {
 	basePort := c.Int("port")
 	envFN := c.String("env")
 	discoveryAddr := c.String("service-discovery")
-	formation := c.String("formation")
 	var (
 		filterPatternMu sync.RWMutex
 		filterPattern   string
@@ -226,18 +225,8 @@ func mainRunner(c *cli.Context) error {
 		}
 		s.BasePort = basePort
 	}
-	if len(s.Formation) == 0 {
-		switch {
-		case formation != "":
-			s.Formation = procfile.ParseFormation(formation)
-		default:
-			s.Formation = make(map[string]int, len(s.Processes))
-			for _, proc := range s.Processes {
-				if _, ok := s.Formation[proc.Name]; !ok {
-					s.Formation[proc.Name] = 1
-				}
-			}
-		}
+	if c.IsSet("formation") {
+		s.Formation = procfile.ParseFormation(c.String("formation"))
 	}
 	if c.IsSet("skip") {
 		for _, procName := range strings.Fields(c.String("skip")) {

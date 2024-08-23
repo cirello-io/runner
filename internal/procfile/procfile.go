@@ -159,5 +159,13 @@ func Parse(r io.Reader) (*runner.Runner, error) {
 			rnr.Processes = append(rnr.Processes, &proc)
 		}
 	}
+	if len(rnr.Formation) == 0 {
+		rnr.Formation = make(map[string]int, len(rnr.Processes))
+		for _, proc := range rnr.Processes {
+			if _, ok := rnr.Formation[proc.Name]; !ok {
+				rnr.Formation[proc.Name] = 1
+			}
+		}
+	}
 	return rnr, scanner.Err()
 }
