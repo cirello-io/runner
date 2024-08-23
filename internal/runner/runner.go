@@ -298,29 +298,37 @@ func (r *Runner) runBuilds(ctx context.Context, fn string) bool {
 		if !strings.HasPrefix(sv.Name, "build") {
 			continue
 		}
-		r.setServiceDiscovery(normalizeByEnvVarRules(sv.Name), "building")
-		wgBuild.Add(1)
-		go func(sv *ProcessType) {
-			var buf bytes.Buffer
-			localOk := true
-			defer wgBuild.Done()
-			defer func() {
-				status := "done"
-				if !localOk {
-					status = "errored"
-					r.setServiceDiscovery("ERROR_"+normalizeByEnvVarRules(sv.Name), buf.String())
-				} else {
-					r.deleteServiceDiscovery("ERROR_" + normalizeByEnvVarRules(sv.Name))
+		quantity := 0
+		if len(r.Formation) == 0 {
+			quantity = 1
+		} else if formation, ok := r.Formation[sv.Name]; ok {
+			quantity = formation
+		}
+		for i := 0; i < quantity; i++ {
+			r.setServiceDiscovery(normalizeByEnvVarRules(sv.Name), "building")
+			wgBuild.Add(1)
+			go func(sv *ProcessType) {
+				var buf bytes.Buffer
+				localOk := true
+				defer wgBuild.Done()
+				defer func() {
+					status := "done"
+					if !localOk {
+						status = "errored"
+						r.setServiceDiscovery("ERROR_"+normalizeByEnvVarRules(sv.Name), buf.String())
+					} else {
+						r.deleteServiceDiscovery("ERROR_" + normalizeByEnvVarRules(sv.Name))
+					}
+					r.setServiceDiscovery(normalizeByEnvVarRules(sv.Name), status)
+				}()
+				if !r.startProcess(ctx, sv, -1, -1, fn, &buf) {
+					mu.Lock()
+					ok = false
+					localOk = false
+					mu.Unlock()
 				}
-				r.setServiceDiscovery(normalizeByEnvVarRules(sv.Name), status)
-			}()
-			if !r.startProcess(ctx, sv, -1, -1, fn, &buf) {
-				mu.Lock()
-				ok = false
-				localOk = false
-				mu.Unlock()
-			}
-		}(sv)
+			}(sv)
+		}
 	}
 	wgBuild.Wait()
 	return ok
@@ -335,8 +343,10 @@ func (r *Runner) runPermanent(changedFileName string) *oversight.Tree {
 		if strings.HasPrefix(sv.Name, "build") {
 			continue
 		}
-		maxProc := 1
-		if formation, ok := r.Formation[sv.Name]; ok {
+		var maxProc int
+		if len(r.Formation) == 0 {
+			maxProc = 1
+		} else if formation, ok := r.Formation[sv.Name]; ok {
 			maxProc = formation
 		}
 		portCount := j * 100
@@ -373,8 +383,10 @@ func (r *Runner) runEphemeral(ctx context.Context, changedFileName string) {
 		if strings.HasPrefix(sv.Name, "build") {
 			continue
 		}
-		maxProc := 1
-		if formation, ok := r.Formation[sv.Name]; ok {
+		var maxProc int
+		if len(r.Formation) == 0 {
+			maxProc = 1
+		} else if formation, ok := r.Formation[sv.Name]; ok {
 			maxProc = formation
 		}
 		portCount := j * 100

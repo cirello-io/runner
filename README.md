@@ -36,6 +36,10 @@ not trigger builds.
 - ignore: a space separated list of ignored directories relative to workdir,
 typically vendor directories.
 
+- formation: allows to control how many instances of a process type are
+started, format: procTypeA:# procTypeB:# ... procTypeN:#. If `procType` is
+absent, it is not started. Empty formations start one of each process.
+
 - build*: process type name prefixed by "build" are always executed first and in
 order of declaration. On failure, they halt the initialization.
 

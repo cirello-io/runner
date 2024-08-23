@@ -43,6 +43,10 @@ not trigger builds.
 - ignore: a space separated list of ignored directories relative to workdir,
 typically vendor directories.
 
+- formation: allows to control how many instances of a process type are
+started, format: procTypeA:# procTypeB:# ... procTypeN:#. If `procType` is
+absent, it is not started. Empty formations start one of each process.
+
 - build*: process type name prefixed by "build" are always executed first and in
 order of declaration. On failure, they halt the initialization.
 
@@ -108,7 +112,7 @@ func main() {
 		cli.StringFlag{
 			Name:  "formation",
 			Value: "",
-			Usage: "formation allows to start more than one instance of a process type, format: `procTypeA=# procTypeB=# ... procTypeN=#`. If `procType` is declared with zero (`procType=0`) or (`procType=optional`), it is not started. Non-declared process types are started once.",
+			Usage: "formation allows to control how many instances of a process type are started, format: `procTypeA:# procTypeB:# ... procTypeN:#`. If `procType` is absent, it is not started. Empty formations start one of each process.",
 		},
 		cli.StringFlag{
 			Name:  "env",

@@ -43,10 +43,9 @@
 // - ignore: a space separated list of ignored directories relative to workdir,
 // typically vendor directories.
 //
-// - formation: allows to start more than one instance for a given process type.
-// if the process type is declared with zero ("proc=0"), it is not started. Non
-// declared process types are started once. Each process type has its own
-// exclusive $PORT variable value.
+// - formation: allows to control how many instances of a process type are
+// started, format: procTypeA:# procTypeB:# ... procTypeN:#. If `procType` is
+// absent, it is not started. Empty formations start one of each process.
 //
 // - waitfor (in process type): target hostname and port that the runner will
 // probe before starting the process type.
@@ -81,16 +80,13 @@ func ParseFormation(s string) map[string]int {
 	procs := strings.Split(s, " ")
 	ret := make(map[string]int, len(procs))
 	for _, proc := range procs {
-		procName, count, _ := strings.Cut(proc, "=")
+		procName, count, _ := strings.Cut(proc, ":")
 		procName = strings.TrimSpace(procName)
 		if procName == "" {
 			continue
 		}
 		ret[procName] = 1
-		count = strings.TrimSpace(count)
-		if count == "optional" {
-			ret[procName] = 0
-		} else if quantity, err := strconv.Atoi(strings.TrimSpace(count)); err == nil {
+		if quantity, err := strconv.Atoi(strings.TrimSpace(count)); err == nil {
 			ret[procName] = quantity
 		}
 	}

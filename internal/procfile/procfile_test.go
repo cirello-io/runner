@@ -34,7 +34,7 @@ build-server: make server
 web:  restart=onbuild waitfor=localhost:8888 ./server serve
 web2: restart=fail waitfor=localhost:8888 ./server serve
 web3: restart=fail waitfor=localhost:8888 ./server serve
-formation: web=1 web2=2 web3=1
+formation: web:1 web2:2 web3:1
 malformed-line`
 	got, err := Parse(strings.NewReader(example))
 	if err != nil {
@@ -86,7 +86,7 @@ malformed-line`
 
 func TestParseErrors(t *testing.T) {
 	t.Run("web=a", func(t *testing.T) {
-		example := `formation: web=a`
+		example := `formation: web:a`
 		got, err := Parse(strings.NewReader(example))
 		if err != nil {
 			t.Error("unexpected error", err)
