@@ -46,9 +46,9 @@
 // - waitfor (in process type): target hostname and port that the runner will
 // probe before starting the process type.
 //
-// - restart (in process type): "always" will restart the process type at every
+// - restart (in process type): "onbuild" will restart the process type at every
 // build; "fail" will restart the process type on failure; "loop" restart the
-// process when it naturally terminates.
+// process when it naturally terminates; "temporary" runs the process only once.
 //
 // - group (in process type): group of processes that depend on each other. If a
 // process type fails, it will halt all others in the same group. If the

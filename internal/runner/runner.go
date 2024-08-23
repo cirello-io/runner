@@ -47,8 +47,8 @@ type RestartMode string
 // fails, it silently defaults to Never.
 func ParseRestartMode(m string) RestartMode {
 	switch strings.ToLower(m) {
-	case "yes", "always", "true", "1":
-		return Always
+	case "yes", "always", "true", "1", "onbuild", "build":
+		return OnBuild
 	case "fail", "failure", "onfail", "onfailure", "on-failure", "on_failure":
 		return OnFailure
 	case "temporary", "start-once", "temp", "tmp":
@@ -62,7 +62,7 @@ func ParseRestartMode(m string) RestartMode {
 
 // Restart modes
 const (
-	Always    RestartMode = "yes"
+	OnBuild   RestartMode = "onbuild"
 	OnFailure RestartMode = "fail"
 	Temporary RestartMode = "temporary"
 	Loop      RestartMode = "loop"

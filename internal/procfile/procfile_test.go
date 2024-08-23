@@ -31,7 +31,7 @@ func TestParse(t *testing.T) {
 observe: *.go *.js
 ignore: /vendor
 build-server: make server
-web: group=service restart=always waitfor=localhost:8888 ./server serve
+web: group=service restart=onbuild waitfor=localhost:8888 ./server serve
 web2: sticky=1 group=service restart=fail waitfor=localhost:8888 ./server serve
 web3: sticky=1 group=service restart=fail optional=true waitfor=localhost:8888 ./server serve
 formation: web=1 web2=2 web3=1
@@ -58,7 +58,7 @@ malformed-line`
 			Cmd:  "./server serve",
 
 			WaitFor: "localhost:8888",
-			Restart: runner.Always,
+			Restart: runner.OnBuild,
 			Group:   "service",
 		},
 		{

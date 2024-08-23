@@ -14,8 +14,8 @@ the following content:
 	ignore: /vendor
 	build-server: make server
 	web: restart=fail waitfor=localhost:8888 ./server serve
-	web-a: group=web restart=always waitfor=localhost:8888 ./server serve alpha
-	web-b: group=web restart=always waitfor=localhost:8888 ./server serve bravo
+	web-a: group=web restart=onbuild waitfor=localhost:8888 ./server serve alpha
+	web-b: group=web restart=onbuild waitfor=localhost:8888 ./server serve bravo
 	db: restart=failure waitfor=web ./server db
 
 Special process type names:
@@ -36,10 +36,9 @@ order of declaration. On failure, they halt the initialization.
 - waitfor (in process type): target hostname and port that the runner will probe
 before starting the process type.
 
-- restart (in process type): "always" will restart the process type at every
-build; "fail" will restart the process type on failure; "temporary" will start
-the service once and not restart it on rebuilds; "loop" will restart the process
-when it naturally terminates.
+- restart (in process type): "onbuild" will restart the process type at every
+build; "fail" will restart the process type on failure; "loop" restart the
+process when it naturally terminates; "temporary" runs the process only once.
 
 - group (in process type): group of processes that depend on each other. If a
 process type fails, it will halt all others in the same group. If the
