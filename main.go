@@ -183,13 +183,15 @@ func mainRunner(c *cli.Context) error {
 		return err
 	}
 
-	if basePort != 0 && (basePort < 1 || basePort > 65535) {
-		return errors.New("invalid IP port")
-	}
-
 	s, err := procfile.Parse(fd)
 	if err != nil {
 		return fmt.Errorf("cannot parse spec file (procfile): %v", err)
+	}
+	if basePort != 0 {
+		if basePort < 1 || basePort > 65535 {
+			return errors.New("invalid IP port")
+		}
+		s.BasePort = basePort
 	}
 	if len(s.Formation) == 0 && formation != "" {
 		s.Formation = procfile.ParseFormation(formation)
@@ -206,8 +208,6 @@ func mainRunner(c *cli.Context) error {
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
-
-	s.BasePort = basePort
 
 	if envFN != "" {
 		fd, err := os.Open(envFN)
