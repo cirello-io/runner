@@ -59,8 +59,8 @@
 // process; "SIGKILL", "kill", or "9" kills the process. The default is
 // "SIGKILL".
 //
-// - signalWait (in process types): duration to wait after sending the signal to
-// the process.
+// - signalTimeout (in process types): duration (in Go format) to wait after
+// sending the signal to the process.
 //
 // - optional (in process types): does not start this process unless explicit
 // told so.
@@ -136,12 +136,12 @@ func Parse(r io.Reader) (*runner.Runner, error) {
 					proc.Signal = runner.ParseSignal(strings.TrimPrefix(part, "signal="))
 					continue
 				}
-				if strings.HasPrefix(part, "signalWait=") {
-					signalWait, err := time.ParseDuration(strings.TrimPrefix(part, "signalWait="))
+				if strings.HasPrefix(part, "signalTimeout=") {
+					signalTimeout, err := time.ParseDuration(strings.TrimPrefix(part, "signalTimeout="))
 					if err != nil {
 						return rnr, err
 					}
-					proc.SignalWait = signalWait
+					proc.SignalTimeout = signalTimeout
 					continue
 				}
 				if strings.HasPrefix(part, "optional=") {

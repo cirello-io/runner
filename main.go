@@ -57,8 +57,8 @@ types will halt and not restart.
 - signal (in process types): "SIGTERM", "term", or "15" terminates the process;
 "SIGKILL", "kill", or "9" kills the process. The default is "SIGKILL".
 
-- signalWait (in process types): duration to wait after sending the signal to
-the process.
+- signalTimeout (in process types): duration (in Go format) to wait after
+sending the signal to the process.
 
 - optional (in process types): does not start this process unless explicit told
 so. The process type must be part of a group.

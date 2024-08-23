@@ -25,7 +25,7 @@ import (
 	"time"
 )
 
-func command(ctx context.Context, cmd string, signal Signal, signalWait time.Duration) *exec.Cmd {
+func command(ctx context.Context, cmd string, signal Signal, signalTimeout time.Duration) *exec.Cmd {
 	c := exec.CommandContext(ctx, "sh", "-c", cmd)
 	c.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	c.Cancel = func() error {
@@ -40,8 +40,8 @@ func command(ctx context.Context, cmd string, signal Signal, signalWait time.Dur
 		if err := syscall.Kill(pgid, osSignal); err != nil {
 			return fmt.Errorf("cannot signal process group: %w", err)
 		}
-		if signalWait > 0 {
-			time.Sleep(signalWait)
+		if signalTimeout > 0 {
+			time.Sleep(signalTimeout)
 		}
 		return nil
 	}

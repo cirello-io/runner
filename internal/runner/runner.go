@@ -108,9 +108,9 @@ type ProcessType struct {
 	// Signal indicates how a process should be halted.
 	Signal Signal
 
-	// SignalWait indicates how long to wait for a process to be finished
+	// SignalTimeout indicates how long to wait for a process to be finished
 	// before releasing it.
-	SignalWait time.Duration
+	SignalTimeout time.Duration
 
 	// Optional processes are the ones skipped by default during start. The
 	// user must explicitly tell this process to start.
@@ -538,7 +538,7 @@ func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, p
 		fmt.Fprintln(pw, "listening on", port)
 	}
 	fmt.Fprintln(pw)
-	c := command(ctx, cmd, sv.Signal, sv.SignalWait)
+	c := command(ctx, cmd, sv.Signal, sv.SignalTimeout)
 	c.Dir = r.WorkDir
 
 	c.Env = os.Environ()
