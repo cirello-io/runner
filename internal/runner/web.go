@@ -18,37 +18,34 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"html/template"
 	"log"
 	"net"
 	"net/http"
 	"net/url"
-	"os"
+	"slices"
 	"strings"
 
-	oversight "cirello.io/oversight/easy"
 	terminal "github.com/buildkite/terminal-to-html/v3"
 )
 
 const sseLogForwarderBufferSize = 102400
 
-func (r *Runner) subscribeLogFwd() <-chan LogMessage {
-	r.logsMu.Lock()
+func (r *Runner) subscribeLogFwd() chan LogMessage {
 	stream := make(chan LogMessage, sseLogForwarderBufferSize)
+	r.logsMu.Lock()
 	r.logSubscribers = append(r.logSubscribers, stream)
 	r.logsMu.Unlock()
 	return stream
 }
 
-func (r *Runner) unsubscribeLogFwd(stream <-chan LogMessage) {
+func (r *Runner) unsubscribeLogFwd(stream chan LogMessage) {
 	r.logsMu.Lock()
 	defer r.logsMu.Unlock()
-	for i := 0; i < len(r.logSubscribers); i++ {
-		if r.logSubscribers[i] == stream {
-			r.logSubscribers = append(r.logSubscribers[:i], r.logSubscribers[i+1:]...)
-			return
-		}
-	}
+	r.logSubscribers = slices.DeleteFunc(r.logSubscribers, func(i chan LogMessage) bool {
+		return i == stream
+	})
 }
 
 func (r *Runner) serveWeb(ctx context.Context) error {
@@ -62,78 +59,76 @@ func (r *Runner) serveWeb(ctx context.Context) error {
 	}
 	log.Println("starting service discovery on", l.Addr())
 	r.ServiceDiscoveryAddr = l.Addr().String()
-	go func() {
-		mux := http.NewServeMux()
-		mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
-			sseURL := url.URL{Scheme: "http", Host: req.Host, Path: "/logs"}
-			query := sseURL.Query()
-			query.Set("model", "html")
-			filter := req.URL.Query().Get("filter")
-			if filter != "" {
-				query.Set("filter", filter)
-			}
-			sseURL.RawQuery = query.Encode()
-			logsPage.Execute(w, struct {
-				URL    string
-				Filter string
-			}{sseURL.String(), filter})
-		})
-		mux.HandleFunc("/discovery", func(w http.ResponseWriter, _ *http.Request) {
-			enc := json.NewEncoder(w)
-			enc.SetIndent("", "    ")
-			r.sdMu.Lock()
-			defer r.sdMu.Unlock()
-			err := enc.Encode(r.dynamicServiceDiscovery)
-			if err != nil {
-				log.Println("cannot serve service discovery request:", err)
-			}
-		})
-		mux.HandleFunc("/logs", func(w http.ResponseWriter, req *http.Request) {
-			filter := req.URL.Query().Get("filter")
-			mode := req.URL.Query().Get("mode")
-			stream := r.subscribeLogFwd()
-			defer r.unsubscribeLogFwd(stream)
-			w.Header().Set("Content-Type", "text/event-stream")
-			w.Header().Set("Cache-Control", "no-cache")
-			w.Header().Set("Connection", "keep-alive")
-			for {
-				select {
-				case msg := <-stream:
-					if filter != "" && !strings.Contains(msg.Name, filter) && !strings.Contains(msg.Line, filter) {
-						continue
-					}
-					if mode == "html" {
-						msg.Line = string(terminal.Render([]byte(msg.Line)))
-					}
-					b, err := json.Marshal(msg)
-					if err != nil {
-						log.Println("encode:", err)
-						return
-					}
-					_, err = w.Write([]byte("data: " + string(b) + "\n\n"))
-					if err != nil {
-						log.Println("write:", err)
-						return
-					}
-					w.(http.Flusher).Flush()
-				case <-req.Context().Done():
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+		sseURL := url.URL{Scheme: "http", Host: req.Host, Path: "/logs"}
+		query := sseURL.Query()
+		query.Set("model", "html")
+		filter := req.URL.Query().Get("filter")
+		if filter != "" {
+			query.Set("filter", filter)
+		}
+		sseURL.RawQuery = query.Encode()
+		logsPage.Execute(w, struct {
+			URL    string
+			Filter string
+		}{sseURL.String(), filter})
+	})
+	mux.HandleFunc("/discovery", func(w http.ResponseWriter, _ *http.Request) {
+		enc := json.NewEncoder(w)
+		enc.SetIndent("", "    ")
+		r.sdMu.Lock()
+		defer r.sdMu.Unlock()
+		err := enc.Encode(r.dynamicServiceDiscovery)
+		if err != nil {
+			log.Println("cannot serve service discovery request:", err)
+		}
+	})
+	mux.HandleFunc("/logs", func(w http.ResponseWriter, req *http.Request) {
+		filter := req.URL.Query().Get("filter")
+		mode := req.URL.Query().Get("mode")
+		stream := r.subscribeLogFwd()
+		defer r.unsubscribeLogFwd(stream)
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+		for {
+			select {
+			case msg := <-stream:
+				if filter != "" && !strings.Contains(msg.Name, filter) && !strings.Contains(msg.Line, filter) {
+					continue
+				}
+				if mode == "html" {
+					msg.Line = string(terminal.Render([]byte(msg.Line)))
+				}
+				b, err := json.Marshal(msg)
+				if err != nil {
+					log.Println("encode:", err)
 					return
 				}
+				_, err = w.Write([]byte("data: " + string(b) + "\n\n"))
+				if err != nil {
+					log.Println("write:", err)
+					return
+				}
+				w.(http.Flusher).Flush()
+			case <-req.Context().Done():
+				return
 			}
-		})
-		server := &http.Server{
-			Addr:    ":0",
-			Handler: mux,
 		}
-		ctx = oversight.WithContext(ctx, oversight.WithLogger(log.New(os.Stderr, "", log.LstdFlags)))
-		oversight.Add(ctx, func(context.Context) error {
-			if err := server.Serve(l); err != nil {
-				log.Println("service discovery server failed:", err)
-			}
-			return err
-		})
+	})
+	server := &http.Server{
+		Addr:    ":0",
+		Handler: mux,
+	}
+	go func() {
 		<-ctx.Done()
 		server.Shutdown(context.Background())
+	}()
+	go func() {
+		if err := server.Serve(l); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Println("service discovery server failed:", err)
+		}
 	}()
 	return nil
 }
