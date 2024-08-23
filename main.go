@@ -150,6 +150,7 @@ func mainRunner(c *cli.Context) error {
 	onlyProcs := c.String("only")
 	optionalProcs := c.String("optional")
 	discoveryAddr := c.String("service-discovery")
+	formation := c.String("formation")
 
 	var (
 		filterPatternMu sync.RWMutex
@@ -211,6 +212,9 @@ func mainRunner(c *cli.Context) error {
 	s, err := procfile.Parse(fd)
 	if err != nil {
 		return fmt.Errorf("cannot parse spec file (procfile): %v", err)
+	}
+	if len(s.Formation) == 0 && formation != "" {
+		s.Formation = procfile.ParseFormation(formation)
 	}
 
 	s.WorkDir = os.ExpandEnv(s.WorkDir)

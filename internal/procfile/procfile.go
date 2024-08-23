@@ -77,6 +77,25 @@ import (
 	"cirello.io/runner/v2/internal/runner"
 )
 
+// ParseFormation interprets a string in the format "proc=quantity
+// proc2=quantity"
+func ParseFormation(s string) map[string]int {
+	procs := strings.Split(s, " ")
+	ret := make(map[string]int, len(procs))
+	for _, proc := range procs {
+		procName, count, _ := strings.Cut(proc, "=")
+		procName = strings.TrimSpace(procName)
+		if procName == "" {
+			continue
+		}
+		ret[procName] = 1
+		if quantity, err := strconv.Atoi(strings.TrimSpace(count)); err == nil {
+			ret[procName] = quantity
+		}
+	}
+	return ret
+}
+
 // Parse takes a reader that contains an extended Procfile.
 func Parse(r io.Reader) (*runner.Runner, error) {
 	rnr := runner.New()
@@ -102,18 +121,7 @@ func Parse(r io.Reader) (*runner.Runner, error) {
 		case "ignore":
 			rnr.SkipDirs = strings.Split(command, " ")
 		case "formation":
-			procs := strings.Split(command, " ")
-			for _, proc := range procs {
-				procName, count, _ := strings.Cut(proc, "=")
-				procName = strings.TrimSpace(procName)
-				if procName == "" {
-					continue
-				}
-				rnr.Formation[procName] = 1
-				if quantity, err := strconv.Atoi(strings.TrimSpace(count)); err == nil {
-					rnr.Formation[procName] = quantity
-				}
-			}
+			rnr.Formation = ParseFormation(command)
 		default:
 			proc := runner.ProcessType{Name: procType}
 			parts := strings.Split(command, " ")
