@@ -226,8 +226,8 @@ func mainRunner(c *cli.Context) error {
 		s.WorkDir = wd
 	}
 
-	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer cancel()
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 
 	s.BasePort = basePort
 
@@ -338,7 +338,7 @@ func logs() cli.Command {
 			},
 		},
 		Action: func(c *cli.Context) error {
-			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+			ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 			defer stop()
 
 			u := url.URL{Scheme: "http", Host: c.GlobalString("service-discovery"), Path: "/logs"}
