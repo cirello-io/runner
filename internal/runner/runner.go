@@ -471,6 +471,9 @@ func (r *Runner) runEphemeral(ctx context.Context, changedFileName string) {
 }
 
 func (r *Runner) prepareStaticServiceDiscovery() {
+	if r.BasePort == 0 {
+		return
+	}
 	for j, sv := range r.Processes {
 		if strings.HasPrefix(sv.Name, "build") {
 			continue
@@ -488,8 +491,8 @@ func (r *Runner) prepareStaticServiceDiscovery() {
 				r.staticServiceDiscovery,
 				fmt.Sprintf("%s=localhost:%d", discoveryEnvVar(sv.Name, i), r.BasePort+portCount),
 			)
-			portCount++
 		}
+		portCount++
 	}
 }
 
@@ -518,13 +521,10 @@ func normalizeByEnvVarRules(name string) string {
 func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, portCount int, changedFileName string, buf io.Writer) bool {
 	pr, pw := io.Pipe()
 	procName := sv.Name
-	port := r.BasePort + portCount
 	if procCount > -1 {
 		procName = fmt.Sprintf("%v.%v", procName, procCount)
 	}
-	if portCount > -1 {
-		r.setServiceDiscovery(discoveryEnvVar(sv.Name, procCount), fmt.Sprint("localhost:", port))
-	}
+
 	r.prefixedPrinter(ctx, pr, procName)
 
 	defer pw.Close()
@@ -534,9 +534,7 @@ func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, p
 
 	fmt.Fprintln(pw, "running", `"`+cmd+`"`)
 	defer fmt.Fprintln(pw, "finished", `"`+cmd+`"`)
-	if portCount > -1 {
-		fmt.Fprintln(pw, "listening on", port)
-	}
+
 	fmt.Fprintln(pw)
 	c := command(ctx, cmd, sv.Signal, sv.SignalTimeout)
 	c.Dir = r.WorkDir
@@ -546,7 +544,10 @@ func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, p
 		c.Env = append(c.Env, r.BaseEnvironment...)
 	}
 	c.Env = append(c.Env, fmt.Sprintf("PS=%v", procName))
-	if portCount > -1 {
+	if isPortEnabled := r.BasePort > 0 && portCount > -1; isPortEnabled {
+		port := r.BasePort + portCount
+		r.setServiceDiscovery(discoveryEnvVar(sv.Name, procCount), fmt.Sprint("localhost:", port))
+		fmt.Fprintln(pw, "listening on", port)
 		c.Env = append(c.Env, fmt.Sprintf("PORT=%d", port))
 	}
 

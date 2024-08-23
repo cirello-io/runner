@@ -101,8 +101,8 @@ func main() {
 	app.Flags = []cli.Flag{
 		cli.IntFlag{
 			Name:  "port",
-			Value: 5000,
-			Usage: "base IP port used to set $`PORT` for each process type. Should be multiple of 1000.",
+			Value: 0,
+			Usage: "base IP port used to set $PORT for each process type. Should be multiple of 1000.",
 		},
 		cli.StringFlag{
 			Name:  "service-discovery",
@@ -205,7 +205,7 @@ func mainRunner(c *cli.Context) error {
 		return err
 	}
 
-	if basePort < 1 || basePort > 65535 {
+	if basePort != 0 && (basePort < 1 || basePort > 65535) {
 		return errors.New("invalid IP port")
 	}
 
