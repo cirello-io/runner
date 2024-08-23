@@ -49,7 +49,7 @@ type RestartMode string
 // fails, it silently defaults to Never.
 func ParseRestartMode(m string) RestartMode {
 	switch strings.ToLower(m) {
-	case "yes", "always", "true", "1", "onbuild", "build":
+	case "onbuild", "yes", "always", "true", "1", "build":
 		return OnBuild
 	case "fail", "failure", "onfail", "onfailure", "on-failure", "on_failure":
 		return OnFailure
@@ -94,7 +94,7 @@ type ProcessType struct {
 	// that all steps are executed upon restart. This option does not apply
 	// to build steps.
 	//
-	// - yes|always: alway restart the process type.
+	// - yes|onbuild: alway restart the process type.
 	// - no|<empty>: restart the process type on rebuild.
 	// - on-failure|fail: restart the process type if any of the steps fail.
 	// - temporary|tmp: start the process once and skip restart on rebuild.
