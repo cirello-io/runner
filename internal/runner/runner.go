@@ -225,11 +225,7 @@ func (r *Runner) Start(rootCtx context.Context) error {
 	fileHashes := make(map[string]string) // fn to hash
 	c, cancel := context.WithCancel(rootCtx)
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		r.runEphemeral(rootCtx, "")
-	}()
+	var ephemeralOnce sync.Once
 	for {
 		select {
 		case <-rootCtx.Done():
@@ -258,6 +254,13 @@ func (r *Runner) Start(rootCtx context.Context) error {
 				log.Println("builds pending before application start:", l)
 			}
 		case fn := <-run:
+			ephemeralOnce.Do(func() {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					r.runEphemeral(rootCtx, "")
+				}()
+			})
 			c, cancel = context.WithCancel(rootCtx)
 			tree := r.runPermanent(fn)
 			wg.Add(1)
