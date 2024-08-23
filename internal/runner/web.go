@@ -56,14 +56,12 @@ func (r *Runner) serveWeb(ctx context.Context) error {
 	if addr == "" {
 		return nil
 	}
-
 	l, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
 	}
 	log.Println("starting service discovery on", l.Addr())
 	r.ServiceDiscoveryAddr = l.Addr().String()
-
 	go func() {
 		mux := http.NewServeMux()
 		mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
@@ -95,11 +93,9 @@ func (r *Runner) serveWeb(ctx context.Context) error {
 			mode := req.URL.Query().Get("mode")
 			stream := r.subscribeLogFwd()
 			defer r.unsubscribeLogFwd(stream)
-
 			w.Header().Set("Content-Type", "text/event-stream")
 			w.Header().Set("Cache-Control", "no-cache")
 			w.Header().Set("Connection", "keep-alive")
-
 			for {
 				select {
 				case msg := <-stream:
@@ -125,7 +121,6 @@ func (r *Runner) serveWeb(ctx context.Context) error {
 				}
 			}
 		})
-
 		server := &http.Server{
 			Addr:    ":0",
 			Handler: mux,

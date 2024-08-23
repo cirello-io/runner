@@ -26,7 +26,6 @@ import (
 
 func TestParse(t *testing.T) {
 	const example = `workdir: $GOPATH/src/github.com/example/go-app
-
 #this is a comment
 observe: *.go *.js
 baseport: 5000
@@ -37,12 +36,10 @@ web2: restart=fail waitfor=localhost:8888 ./server serve
 web3: restart=fail waitfor=localhost:8888 ./server serve
 formation: web=1 web2=2 web3=1
 malformed-line`
-
 	got, err := Parse(strings.NewReader(example))
 	if err != nil {
 		t.Error("unexpected error", err)
 	}
-
 	expected := runner.New()
 	expected.WorkDir = os.ExpandEnv("$GOPATH/src/github.com/example/go-app")
 	expected.BasePort = 5000
@@ -82,7 +79,6 @@ malformed-line`
 		"web2": 2,
 		"web3": 1,
 	}
-
 	if !cmp.Equal(got, expected, cmpopts.IgnoreUnexported(runner.Runner{})) {
 		t.Errorf("parser did not get the right result. \n%v", cmp.Diff(got, expected, cmpopts.IgnoreUnexported(runner.Runner{})))
 	}
@@ -99,7 +95,6 @@ func TestParseErrors(t *testing.T) {
 			t.Error("non-numeric process type formations should default to 1, got:", q)
 		}
 	})
-
 	t.Run("web", func(t *testing.T) {
 		example := `formation: web`
 		got, err := Parse(strings.NewReader(example))
@@ -110,7 +105,6 @@ func TestParseErrors(t *testing.T) {
 			t.Error("non specified process type quantities should default to 1, got:", q)
 		}
 	})
-
 	t.Run("empty", func(t *testing.T) {
 		example := `formation:     `
 		got, err := Parse(strings.NewReader(example))

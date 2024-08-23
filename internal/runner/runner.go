@@ -202,13 +202,11 @@ func (r *Runner) Start(rootCtx context.Context) error {
 			return ErrNonUniqueProcessTypeName
 		}
 		nameDict[normalizeByEnvVarRules(name)] = struct{}{}
-
 		if l := len(name); l > r.longestProcessTypeName {
 			r.longestProcessTypeName = l
 		}
 	}
 	r.longestProcessTypeName++
-
 	if err := r.serveWeb(rootCtx); err != nil {
 		return fmt.Errorf("cannot serve discovery interface: %w", err)
 	}
@@ -224,14 +222,11 @@ func (r *Runner) Start(rootCtx context.Context) error {
 			r.logsMu.RUnlock()
 		}
 	}()
-
 	updates, err := r.monitorWorkDir()
 	if err != nil {
 		return err
 	}
-
 	r.prepareStaticServiceDiscovery()
-
 	run := make(chan string, 1)
 	fileHashes := make(map[string]string) // fn to hash
 	c, cancel := context.WithCancel(rootCtx)
@@ -255,12 +250,10 @@ func (r *Runner) Start(rootCtx context.Context) error {
 				continue
 			}
 			fileHashes[fn] = newHash
-
 			if ok := r.runBuilds(c, fn); !ok {
 				log.Println("error during build, halted")
 				continue
 			}
-
 			if l := len(updates); l == 0 {
 				cancel()
 				select {
@@ -288,12 +281,10 @@ func calcFileHash(fn string) string {
 		return ""
 	}
 	defer f.Close()
-
 	h := sha1.New()
 	if _, err := io.Copy(h, f); err != nil {
 		return ""
 	}
-
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
@@ -483,21 +474,14 @@ func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, p
 	if procCount > -1 {
 		procName = fmt.Sprintf("%v.%v", procName, procCount)
 	}
-
 	r.prefixedPrinter(ctx, pr, procName)
-
 	defer pw.Close()
 	defer pr.Close()
-
-	cmd := sv.Cmd
-
-	fmt.Fprintln(pw, "running", `"`+cmd+`"`)
-	defer fmt.Fprintln(pw, "finished", `"`+cmd+`"`)
-
+	fmt.Fprintln(pw, "running", `"`+sv.Cmd+`"`)
+	defer fmt.Fprintln(pw, "finished", `"`+sv.Cmd+`"`)
 	fmt.Fprintln(pw)
-	c := command(ctx, cmd, sv.Signal, sv.SignalTimeout)
+	c := command(ctx, sv.Cmd, sv.Signal, sv.SignalTimeout)
 	c.Dir = r.WorkDir
-
 	c.Env = os.Environ()
 	if len(r.BaseEnvironment) > 0 {
 		c.Env = append(c.Env, r.BaseEnvironment...)
@@ -509,33 +493,28 @@ func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, p
 		fmt.Fprintln(pw, "listening on", port)
 		c.Env = append(c.Env, fmt.Sprintf("PORT=%d", port))
 	}
-
 	if r.ServiceDiscoveryAddr != "" {
 		c.Env = append(c.Env, fmt.Sprintf("DISCOVERY=%v", r.ServiceDiscoveryAddr))
 		c.Env = append(c.Env, r.staticServiceDiscovery...)
 	}
-
 	c.Env = append(c.Env, fmt.Sprintf("CHANGED_FILENAME=%v", changedFileName))
-
 	stderrPipe, err := c.StderrPipe()
 	if err != nil {
-		fmt.Fprintln(pw, "cannot open stderr pipe", procName, cmd, err)
+		fmt.Fprintln(pw, "cannot open stderr pipe", procName, sv.Cmd, err)
 		return false
 	}
 	stdoutPipe, err := c.StdoutPipe()
 	if err != nil {
-		fmt.Fprintln(pw, "cannot open stdout pipe", procName, cmd, err)
+		fmt.Fprintln(pw, "cannot open stdout pipe", procName, sv.Cmd, err)
 		return false
 	}
-
 	r.prefixedPrinter(ctx, io.TeeReader(stderrPipe, buf), procName)
 	r.prefixedPrinter(ctx, io.TeeReader(stdoutPipe, buf), procName)
-
 	if sv.WaitFor != "" {
 		r.waitFor(ctx, pw, sv.WaitFor)
 	}
 	if err := c.Run(); err != nil {
-		fmt.Fprintf(pw, "exec error %s: (%s) %v\n", procName, cmd, err)
+		fmt.Fprintf(pw, "exec error %s: (%s) %v\n", procName, sv.Cmd, err)
 		return false
 	}
 	return true
@@ -562,7 +541,6 @@ func (r *Runner) waitFor(ctx context.Context, w io.Writer, target string) {
 func (r *Runner) resolveProcessTypeAddress(target string) string {
 	r.sdMu.Lock()
 	defer r.sdMu.Unlock()
-
 	for name, port := range r.dynamicServiceDiscovery {
 		if strings.HasPrefix(name, target) {
 			return fmt.Sprint("localhost:", port)
@@ -585,16 +563,11 @@ func (r *Runner) prefixedPrinter(ctx context.Context, rdr io.Reader, name string
 				Line:       line,
 			}
 		}
-
-		select {
-		// If the context is cancelled, we really don't care about
-		// errors anymore.
-		case <-ctx.Done():
+		if ctx.Err() != nil {
 			return
-		default:
-			if err := scanner.Err(); err != nil && err != os.ErrClosed && err != io.ErrClosedPipe {
-				fmt.Println(paddedName+":", "error:", err)
-			}
+		}
+		if err := scanner.Err(); err != nil && err != os.ErrClosed && err != io.ErrClosedPipe {
+			fmt.Println(paddedName+":", "error:", err)
 		}
 	}()
 	return scanner
@@ -664,16 +637,13 @@ func (s *Runner) monitorWorkDir() (<-chan string, error) {
 func match(p, path string) bool {
 	base, dir := filepath.Base(path), filepath.Dir(path)
 	pbase, pdir := filepath.Base(p), filepath.Dir(p)
-
 	if matched, err := filepath.Match(pbase, base); err != nil || !matched {
 		return false
 	}
-
 	if pdir == "." {
 		return true
 	}
 	subpatterns := strings.Split(pdir, "**")
-
 	tmp := dir
 	for _, subp := range subpatterns {
 		if subp == "" {
@@ -686,7 +656,6 @@ func match(p, path string) bool {
 		}
 		tmp = t
 	}
-
 	return true
 }
 
