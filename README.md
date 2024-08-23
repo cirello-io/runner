@@ -3,14 +3,14 @@
 [![GoDoc](https://pkg.go.dev/badge/cirello.io/runner/v2)](https://pkg.go.dev/cirello.io/runner/v2)
 [![License](https://img.shields.io/badge/license-apache%202.0-blue.svg)](https://choosealicense.com/licenses/apache-2.0/)
 
-runner is a structured command executer that monitor file changes to trigger
-process restarts.
+runner is a structured command executer for Unix systems that monitor file
+changes to trigger process restarts.
 
 Create a file name Procfile in the root of the project you want to run, and add
 the following content:
 
 	workdir: $GOPATH/src/github.com/example/go-app
-	formation: db=2 optional-service=optional
+	formation: web web-a web-b db optional-service=0
 	observe: *.go *.js
 	ignore: /vendor
 	build-server: make server
@@ -65,6 +65,9 @@ NAME:
 USAGE:
    runner [global options] command [command options] [arguments...]
 
+VERSION:
+   v2 (4207c79dde9478596d3af8e055f00201cc7ddfec)
+
 COMMANDS:
    logs     Follows logs from running processes
    help, h  Shows a list of commands or help for one command
@@ -72,9 +75,13 @@ COMMANDS:
 GLOBAL OPTIONS:
    --port value                                         base IP port used to set $PORT for each process type. Should be multiple of 1000. (default: 0)
    --service-discovery value                            service discovery address (default: "localhost:64000")
-   --formation procTypeA=# procTypeB=# ... procTypeN=#  formation allows to start more than one instance of a process type, format: procTypeA=# procTypeB=# ... procTypeN=#. If `procType` is declared with zero (`procType=0`) or (`procType=optional`), it is not started. Non-declared process types are started once.
+   --formation procTypeA:# procTypeB:# ... procTypeN:#  formation allows to control how many instances of a process type are started, format: procTypeA:# procTypeB:# ... procTypeN:#. If `procType` is absent, it is not started. Empty formations start one of each process.
    --env file                                           environment file to be loaded for all processes, if the file is absent, then this parameter is ignored. (default: ".env")
+   --skip procTypeA procTypeB procTypeN                 does not run some of the process types, format: procTypeA procTypeB procTypeN
+   --only procTypeA procTypeB procTypeN                 only runs some of the process types, format: procTypeA procTypeB procTypeN
+   --optional procTypeA procTypeB procTypeN             forcefully runs some of the process types, format: procTypeA procTypeB procTypeN
    --help, -h                                           show help
+   --version, -v                                        print the version
 ```
 
 `-env file` loads the environment file common to all process types. It must be
@@ -85,11 +92,10 @@ VARIABLENAME=VALUE
 ```
 Note: one environment variable per line.
 
-`-formation procTypeA=# procTypeB=# ... procTypeN=#` can be used to start more
-than one instance of a process type. It is commonly used to start many
-supporting background workers to an application. If `procType` is declared with
-zero (`procType=0`) or (`procType=optional`), it is not started. Non-declared
-process types are started once.
+`--formation procTypeA:# procTypeB:# ... procTypeN:#` allows to control
+how many instances of a process type are started, format: procTypeA:#
+procTypeB:# ... procTypeN:#. If `procType` is absent, it is not started. Empty
+formations start one of each process.
 
 `-port PORT` is the base IP port number used for each process type. It passes
 the port number as an environment variable named `$PORT` to the process, and
@@ -115,7 +121,7 @@ for each instance of a process type, like what follows:
 
 ```
 # format: NAME_#_PORT
-formation: web=3 worker=2
+formation: web:3 worker:2
 web: server back
 worker: some-worker
 
