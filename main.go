@@ -194,7 +194,7 @@ func mainRunner(c *cli.Context) error {
 			}
 			if strings.Contains(text, pattern) {
 				fmt.Fprintln(actualStdout, text)
-				break
+				continue
 			}
 		}
 		if err := scanner.Err(); err != nil {
