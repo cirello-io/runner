@@ -25,6 +25,10 @@ Special process type names:
 - workdir: the working directory. Environment variables are expanded. It follows
 the same rules for exec.Command.Dir.
 
+- baseport: when set to a number, it will be used as the starting point for
+the $PORT environment variable. Each process type will have its own exclusive
+$PORT variable value.
+
 - observe: a space separated list of file patterns to scan for. It uses
 filepath.Match internally. File patterns preceded with exclamation mark (!) will
 not trigger builds.

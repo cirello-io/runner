@@ -20,6 +20,7 @@
 // Example:
 //
 //	workdir: $GOPATH/src/github.com/example/go-app
+//	basePort: 5000
 //	observe: *.go *.js
 //	ignore: /vendor
 //	formation: web=2
@@ -30,6 +31,10 @@
 //
 // - workdir: the working directory. Environment variables are expanded. It
 // follows the same rules for exec.Command.Dir.
+//
+// - baseport: when set to a number, it will be used as the starting point for
+// the $PORT environment variable. Each process type will have its own exclusive
+// $PORT variable value.
 //
 // - observe: a space separated list of file patterns to scan for. It uses
 // filepath.Match internally. File patterns preceded with exclamation mark (!)
@@ -65,6 +70,7 @@ package procfile
 
 import (
 	"bufio"
+	"errors"
 	"io"
 	"os"
 	"strconv"
@@ -115,6 +121,15 @@ func Parse(r io.Reader) (*runner.Runner, error) {
 		switch strings.ToLower(procType) {
 		case "workdir":
 			rnr.WorkDir = os.ExpandEnv(command)
+		case "baseport":
+			port, err := strconv.Atoi(command)
+			if err != nil {
+				return rnr, err
+			}
+			if port < 1 || port > 65535 {
+				return rnr, errors.New("invalid IP port")
+			}
+			rnr.BasePort = port
 		case "observe", "watch":
 			rnr.Observables = strings.Split(command, " ")
 		case "ignore":

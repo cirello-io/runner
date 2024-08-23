@@ -29,6 +29,7 @@ func TestParse(t *testing.T) {
 
 #this is a comment
 observe: *.go *.js
+baseport: 5000
 ignore: /vendor
 build-server: make server
 web: group=service restart=onbuild waitfor=localhost:8888 ./server serve
@@ -44,6 +45,7 @@ malformed-line`
 
 	expected := runner.New()
 	expected.WorkDir = os.ExpandEnv("$GOPATH/src/github.com/example/go-app")
+	expected.BasePort = 5000
 	expected.Observables = []string{"*.go", "*.js"}
 	expected.SkipDirs = []string{"/vendor"}
 	expected.Processes = []*runner.ProcessType{
