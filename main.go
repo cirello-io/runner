@@ -85,9 +85,9 @@ import (
 	"strings"
 	"sync"
 
-	"cirello.io/runner/internal/envfile"
-	"cirello.io/runner/internal/procfile"
-	"cirello.io/runner/internal/runner"
+	"cirello.io/runner/v2/internal/envfile"
+	"cirello.io/runner/v2/internal/procfile"
+	"cirello.io/runner/v2/internal/runner"
 	cli "github.com/urfave/cli"
 )
 

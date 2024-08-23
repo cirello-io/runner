@@ -77,7 +77,7 @@ import (
 	"strings"
 	"time"
 
-	"cirello.io/runner/internal/runner"
+	"cirello.io/runner/v2/internal/runner"
 )
 
 // Parse takes a reader that contains an extended Procfile.
