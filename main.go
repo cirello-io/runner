@@ -336,7 +336,6 @@ func logs() cli.Command {
 		Action: func(c *cli.Context) error {
 			ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 			defer stop()
-
 			u := url.URL{Scheme: "http", Host: c.GlobalString("service-discovery"), Path: "/logs"}
 			if filter := c.String("filter"); filter != "" {
 				query := u.Query()
@@ -344,58 +343,50 @@ func logs() cli.Command {
 				u.RawQuery = query.Encode()
 			}
 			log.Printf("connecting to %s", u.String())
-
 			follow := func() (outErr error) {
 				req, err := http.NewRequestWithContext(ctx, "GET", u.String(), nil)
 				if err != nil {
 					return fmt.Errorf("cannot create request: %v", err)
 				}
-
 				resp, err := http.DefaultClient.Do(req)
 				if err != nil {
 					return fmt.Errorf("cannot connect to service discovery endpoint: %v", err)
 				}
 				defer resp.Body.Close()
-
 				if resp.StatusCode != http.StatusOK {
 					return fmt.Errorf("bad status: %s", resp.Status)
 				}
-
 				br := bufio.NewReaderSize(resp.Body, 10*1024*1024)
 				for {
-					select {
-					case <-ctx.Done():
+					if ctx.Err() != nil {
 						return nil
-					default:
-						l, partialRead, err := br.ReadLine()
-						if errors.Is(err, io.EOF) {
-							return nil
-						} else if err != nil {
-							return err
-						} else if partialRead {
-							return fmt.Errorf("partial read: %v", string(l))
-						}
-						l = bytes.TrimSpace(bytes.TrimPrefix(l, []byte("data: ")))
-						if len(l) == 0 {
-							continue
-						}
-						var msg runner.LogMessage
-						if err := json.Unmarshal(l, &msg); err != nil {
-							log.Println("decode:", err)
-							return err
-						}
-						fmt.Println(msg.PaddedName+":", msg.Line)
 					}
+					l, partialRead, err := br.ReadLine()
+					if errors.Is(err, io.EOF) {
+						return nil
+					} else if err != nil {
+						return err
+					} else if partialRead {
+						return fmt.Errorf("partial read: %v", string(l))
+					}
+					l = bytes.TrimSpace(bytes.TrimPrefix(l, []byte("data: ")))
+					if len(l) == 0 {
+						continue
+					}
+					var msg runner.LogMessage
+					if err := json.Unmarshal(l, &msg); err != nil {
+						log.Println("decode:", err)
+						return err
+					}
+					fmt.Println(msg.PaddedName+":", msg.Line)
 				}
 			}
-			var err error
+			var errFollow error
 			for {
-				select {
-				case <-ctx.Done():
-					return err
-				default:
-					err = follow()
+				if ctx.Err() != nil {
+					return errFollow
 				}
+				errFollow = follow()
 			}
 		},
 	}
