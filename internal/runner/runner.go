@@ -104,9 +104,9 @@ type ProcessType struct {
 	// Signal indicates how a process should be halted.
 	Signal Signal
 
-	// SignalTimeout indicates how long to wait for a process to be finished
+	// Timeout indicates how long to wait for a process to be finished
 	// before releasing it.
-	SignalTimeout time.Duration
+	Timeout time.Duration
 }
 
 // Runner defines how this application should be started.
@@ -480,7 +480,7 @@ func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, p
 	fmt.Fprintln(pw, "running", `"`+sv.Cmd+`"`)
 	defer fmt.Fprintln(pw, "finished", `"`+sv.Cmd+`"`)
 	fmt.Fprintln(pw)
-	c := command(ctx, sv.Cmd, sv.Signal, sv.SignalTimeout)
+	c := command(ctx, sv.Cmd, sv.Signal, sv.Timeout)
 	c.Dir = r.WorkDir
 	c.Env = os.Environ()
 	if len(r.BaseEnvironment) > 0 {
@@ -676,7 +676,7 @@ func ParseSignal(s string) Signal {
 	}
 }
 
-func command(ctx context.Context, cmd string, signal Signal, signalTimeout time.Duration) *exec.Cmd {
+func command(ctx context.Context, cmd string, signal Signal, timeout time.Duration) *exec.Cmd {
 	c := exec.CommandContext(ctx, "sh", "-c", cmd)
 	c.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	c.Cancel = func() error {
@@ -691,8 +691,8 @@ func command(ctx context.Context, cmd string, signal Signal, signalTimeout time.
 		if err := syscall.Kill(pgid, osSignal); err != nil {
 			return fmt.Errorf("cannot signal process group: %w", err)
 		}
-		if signalTimeout > 0 {
-			time.Sleep(signalTimeout)
+		if timeout > 0 {
+			time.Sleep(timeout)
 		}
 		return nil
 	}

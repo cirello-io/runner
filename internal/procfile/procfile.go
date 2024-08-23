@@ -59,7 +59,7 @@
 // process; "SIGKILL", "kill", or "9" kills the process. The default is
 // "SIGKILL".
 //
-// - signalTimeout (in process types): duration (in Go format) to wait after
+// - timeout (in process types): duration (in Go format) to wait after
 // sending the signal to the process.
 package procfile
 
@@ -149,12 +149,12 @@ func Parse(r io.Reader) (*runner.Runner, error) {
 					proc.Signal = runner.ParseSignal(strings.TrimPrefix(part, "signal="))
 					continue
 				}
-				if strings.HasPrefix(part, "signalTimeout=") {
-					signalTimeout, err := time.ParseDuration(strings.TrimPrefix(part, "signalTimeout="))
+				if strings.HasPrefix(part, "timeout=") {
+					timeout, err := time.ParseDuration(strings.TrimPrefix(part, "timeout="))
 					if err != nil {
 						return rnr, err
 					}
-					proc.SignalTimeout = signalTimeout
+					proc.Timeout = timeout
 					continue
 				}
 				command = append(command, part)

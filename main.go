@@ -56,7 +56,7 @@ process when it naturally terminates; "temporary" runs the process only once.
 - signal (in process types): "SIGTERM", "term", or "15" terminates the process;
 "SIGKILL", "kill", or "9" kills the process. The default is "SIGKILL".
 
-- signalTimeout (in process types): duration (in Go format) to wait after
+- timeout (in process types): duration (in Go format) to wait after
 sending the signal to the process.
 */
 package main // import "cirello.io/runner/v2"
