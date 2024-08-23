@@ -225,7 +225,7 @@ func (r *Runner) Start(rootCtx context.Context) error {
 		}
 	}()
 
-	updates, err := r.monitorWorkDir(rootCtx)
+	updates, err := r.monitorWorkDir()
 	if err != nil {
 		return err
 	}
@@ -612,7 +612,7 @@ func (r *Runner) deleteServiceDiscovery(svc string) {
 	r.sdMu.Unlock()
 }
 
-func (s *Runner) monitorWorkDir(ctx context.Context) (<-chan string, error) {
+func (s *Runner) monitorWorkDir() (<-chan string, error) {
 	if _, err := os.Stat(s.WorkDir); err != nil {
 		return nil, err
 	}
