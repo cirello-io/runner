@@ -61,9 +61,6 @@
 //
 // - signalTimeout (in process types): duration (in Go format) to wait after
 // sending the signal to the process.
-//
-// - optional (in process types): does not start this process unless explicit
-// told so.
 package procfile
 
 import (
@@ -89,7 +86,10 @@ func ParseFormation(s string) map[string]int {
 			continue
 		}
 		ret[procName] = 1
-		if quantity, err := strconv.Atoi(strings.TrimSpace(count)); err == nil {
+		count = strings.TrimSpace(count)
+		if count == "optional" {
+			ret[procName] = 0
+		} else if quantity, err := strconv.Atoi(strings.TrimSpace(count)); err == nil {
 			ret[procName] = quantity
 		}
 	}
@@ -99,7 +99,6 @@ func ParseFormation(s string) map[string]int {
 // Parse takes a reader that contains an extended Procfile.
 func Parse(r io.Reader) (*runner.Runner, error) {
 	rnr := runner.New()
-
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		// loosen translation of the official regex:
@@ -152,20 +151,11 @@ func Parse(r io.Reader) (*runner.Runner, error) {
 					proc.SignalTimeout = signalTimeout
 					continue
 				}
-				if strings.HasPrefix(part, "optional=") {
-					optional, err := strconv.ParseBool(strings.TrimPrefix(part, "optional="))
-					if err != nil {
-						return rnr, err
-					}
-					proc.Optional = optional
-					continue
-				}
 				command = append(command, part)
 			}
 			proc.Cmd = strings.TrimSpace(strings.Join(command, " "))
 			rnr.Processes = append(rnr.Processes, &proc)
 		}
 	}
-
 	return rnr, scanner.Err()
 }

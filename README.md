@@ -10,6 +10,7 @@ Create a file name Procfile in the root of the project you want to run, and add
 the following content:
 
 	workdir: $GOPATH/src/github.com/example/go-app
+	formation: db=2 optional-service=optional
 	observe: *.go *.js
 	ignore: /vendor
 	build-server: make server
@@ -17,6 +18,7 @@ the following content:
 	web-a: group=web restart=onbuild waitfor=localhost:8888 ./server serve alpha
 	web-b: group=web restart=onbuild waitfor=localhost:8888 ./server serve bravo
 	db: restart=failure waitfor=web ./server db
+	optional-service: ./optional-service
 
 Special process type names:
 
@@ -51,25 +53,25 @@ types will halt and not restart.
 - signalTimeout (in process types): duration (in Go format) to wait after
 sending the signal to the process.
 
-- optional (in process types): does not start this process unless explicit told
-so.
-
 ## CLI parameters
 
 ```Shell
-runner - simple Procfile runner
+NAME:
+   runner - simple Procfile runner
 
-usage: runner [Procfile]
+USAGE:
+   runner [global options] command [command options] [arguments...]
 
-Options:
-  -env file
-    	environment file to be loaded for all processes. (default ".env")
-  -formation procTypeA=# procTypeB=# ... procTypeN=#
-    	formation allows to start more than one instance of a process type, format: procTypeA=# procTypeB=# ... procTypeN=#
-  -port PORT
-    	base IP port used to set $`PORT` for each process type. Should be multiple of 1000. (default 5000)
-  -skip procTypeA procTypeB procTypeN
-    	does not run some of the process types, format: procTypeA procTypeB procTypeN
+COMMANDS:
+   logs     Follows logs from running processes
+   help, h  Shows a list of commands or help for one command
+
+GLOBAL OPTIONS:
+   --port value                                         base IP port used to set $PORT for each process type. Should be multiple of 1000. (default: 0)
+   --service-discovery value                            service discovery address (default: "localhost:64000")
+   --formation procTypeA=# procTypeB=# ... procTypeN=#  formation allows to start more than one instance of a process type, format: procTypeA=# procTypeB=# ... procTypeN=#. If `procType` is declared with zero (`procType=0`) or (`procType=optional`), it is not started. Non-declared process types are started once.
+   --env file                                           environment file to be loaded for all processes, if the file is absent, then this parameter is ignored. (default: ".env")
+   --help, -h                                           show help
 ```
 
 `-env file` loads the environment file common to all process types. It must be
@@ -82,15 +84,13 @@ Note: one environment variable per line.
 
 `-formation procTypeA=# procTypeB=# ... procTypeN=#` can be used to start more
 than one instance of a process type. It is commonly used to start many
-supporting background workers to an application.
+supporting background workers to an application. If `procType` is declared with
+zero (`procType=0`) or (`procType=optional`), it is not started. Non-declared
+process types are started once.
 
 `-port PORT` is the base IP port number used for each process type. It passes
 the port number as an environment variable named `$PORT` to the process, and
 it can be used as means to facilitate the application start up.
-
-`-skip procTypeA procTypeB procTypeN` allows for partial execution of a Procfile.
-If a formation is given, it does not start any instance of the specified process
-type.
 
 ## Environment variables available to processes
 

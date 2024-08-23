@@ -59,9 +59,6 @@ types will halt and not restart.
 
 - signalTimeout (in process types): duration (in Go format) to wait after
 sending the signal to the process.
-
-- optional (in process types): does not start this process unless explicit told
-so. The process type must be part of a group.
 */
 package main // import "cirello.io/runner/v2"
 
@@ -112,27 +109,12 @@ func main() {
 		cli.StringFlag{
 			Name:  "formation",
 			Value: "",
-			Usage: "formation allows to start more than one instance of a process type, format: `procTypeA=# procTypeB=# ... procTypeN=#`",
+			Usage: "formation allows to start more than one instance of a process type, format: `procTypeA=# procTypeB=# ... procTypeN=#`. If `procType` is declared with zero (`procType=0`) or (`procType=optional`), it is not started. Non-declared process types are started once.",
 		},
 		cli.StringFlag{
 			Name:  "env",
 			Value: ".env",
 			Usage: "environment `file` to be loaded for all processes, if the file is absent, then this parameter is ignored.",
-		},
-		cli.StringFlag{
-			Name:  "skip",
-			Value: "",
-			Usage: "does not run some of the process types, format: `procTypeA procTypeB procTypeN`",
-		},
-		cli.StringFlag{
-			Name:  "only",
-			Value: "",
-			Usage: "only runs some of the process types, format: `procTypeA procTypeB procTypeN`",
-		},
-		cli.StringFlag{
-			Name:  "optional",
-			Value: "",
-			Usage: "forcefully runs some of the process types, format: `procTypeA procTypeB procTypeN`",
 		},
 	}
 	app.Commands = []cli.Command{logs()}
@@ -146,9 +128,6 @@ func mainRunner(c *cli.Context) error {
 	origStdout := os.Stdout
 	basePort := c.Int("port")
 	envFN := c.String("env")
-	skipProcs := c.String("skip")
-	onlyProcs := c.String("only")
-	optionalProcs := c.String("optional")
 	discoveryAddr := c.String("service-discovery")
 	formation := c.String("formation")
 
@@ -244,87 +223,11 @@ func mainRunner(c *cli.Context) error {
 			s.BaseEnvironment = baseEnv
 		}
 	}
-
-	if skipProcs != "" {
-		s.Processes = filterSkippedProcs(skipProcs, s.Processes)
-	} else if onlyProcs != "" {
-		s.Processes = filterOnlyProcs(onlyProcs, s.Processes)
-	}
-	if optionalProcs != "" {
-		s.Processes = keepOptionalProcs(optionalProcs, s.Processes)
-	} else {
-		s.Processes = filterOptionalProcs(s.Processes)
-	}
 	s.ServiceDiscoveryAddr = discoveryAddr
 	if err := s.Start(ctx); err != nil {
 		return fmt.Errorf("cannot serve: %v", err)
 	}
 	return nil
-}
-
-func keepOptionalProcs(optionals string, processes []*runner.ProcessType) []*runner.ProcessType {
-	optionalProcs, newProcs := strings.Split(optionals, " "), []*runner.ProcessType{}
-procTypes:
-	for _, procType := range processes {
-		if !procType.Optional {
-			newProcs = append(newProcs, procType)
-			continue
-		}
-		for _, optional := range optionalProcs {
-			if procType.Name == optional {
-				fmt.Println("enabling", optional)
-				newProcs = append(newProcs, procType)
-				continue procTypes
-			}
-		}
-	}
-	return newProcs
-}
-
-func filterOptionalProcs(processes []*runner.ProcessType) []*runner.ProcessType {
-	groups := make(map[string]struct{})
-	newProcs := []*runner.ProcessType{}
-	for _, procType := range processes {
-		if procType.Optional && procType.Group == "" {
-			continue
-		} else if procType.Optional && procType.Group != "" {
-			if _, ok := groups[procType.Group]; ok {
-				continue
-			}
-			groups[procType.Group] = struct{}{}
-		}
-		newProcs = append(newProcs, procType)
-	}
-	return newProcs
-}
-
-func filterSkippedProcs(skip string, processes []*runner.ProcessType) []*runner.ProcessType {
-	skipProcs, newProcs := strings.Split(skip, " "), []*runner.ProcessType{}
-procTypes:
-	for _, procType := range processes {
-		for _, skip := range skipProcs {
-			if procType.Name == skip {
-				fmt.Println("skipping", skip)
-				continue procTypes
-			}
-		}
-		newProcs = append(newProcs, procType)
-	}
-	return newProcs
-}
-
-func filterOnlyProcs(only string, processes []*runner.ProcessType) []*runner.ProcessType {
-	onlyProcs, newProcs := strings.Split(only, " "), []*runner.ProcessType{}
-procTypes:
-	for _, procType := range processes {
-		for _, only := range onlyProcs {
-			if procType.Name == only {
-				newProcs = append(newProcs, procType)
-				continue procTypes
-			}
-		}
-	}
-	return newProcs
 }
 
 func logs() cli.Command {

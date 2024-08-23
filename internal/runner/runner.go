@@ -111,10 +111,6 @@ type ProcessType struct {
 	// SignalTimeout indicates how long to wait for a process to be finished
 	// before releasing it.
 	SignalTimeout time.Duration
-
-	// Optional processes are the ones skipped by default during start. The
-	// user must explicitly tell this process to start.
-	Optional bool
 }
 
 // Runner defines how this application should be started.
