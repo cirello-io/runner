@@ -126,13 +126,11 @@ func main() {
 func mainRunner(c *cli.Context) error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
-
-	origStdout := os.Stdout
+	actualStdout := os.Stdout
 	basePort := c.Int("port")
 	envFN := c.String("env")
 	discoveryAddr := c.String("service-discovery")
 	formation := c.String("formation")
-
 	var (
 		filterPatternMu sync.RWMutex
 		filterPattern   string
@@ -163,11 +161,11 @@ func mainRunner(c *cli.Context) error {
 			filterPatternMu.RUnlock()
 			text := scanner.Text()
 			if pattern == "" {
-				fmt.Fprintln(origStdout, text)
+				fmt.Fprintln(actualStdout, text)
 				continue
 			}
 			if strings.Contains(text, pattern) {
-				fmt.Fprintln(origStdout, text)
+				fmt.Fprintln(actualStdout, text)
 				break
 			}
 		}
@@ -175,17 +173,14 @@ func mainRunner(c *cli.Context) error {
 			log.Println("reading standard output:", err)
 		}
 	}()
-
 	fn := defaultProcfile
 	if argFn := c.Args().First(); argFn != "" {
 		fn = argFn
 	}
-
 	fd, err := os.Open(fn)
 	if err != nil {
 		return err
 	}
-
 	s, err := procfile.Parse(fd)
 	if err != nil {
 		return fmt.Errorf("cannot parse spec file (procfile): %v", err)
@@ -199,7 +194,6 @@ func mainRunner(c *cli.Context) error {
 	if len(s.Formation) == 0 && formation != "" {
 		s.Formation = procfile.ParseFormation(formation)
 	}
-
 	s.WorkDir = os.ExpandEnv(s.WorkDir)
 	if s.WorkDir == "" {
 		wd, err := os.Getwd()
@@ -208,7 +202,6 @@ func mainRunner(c *cli.Context) error {
 		}
 		s.WorkDir = wd
 	}
-
 	if envFN != "" {
 		fd, err := os.Open(envFN)
 		if err == nil {
