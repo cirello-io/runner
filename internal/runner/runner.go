@@ -191,13 +191,7 @@ func (r *Runner) Start(rootCtx context.Context) error {
 	})
 	nameDict := make(map[string]struct{})
 	for _, proc := range r.Processes {
-		var name string
-		if formation, ok := r.Formation[proc.Name]; ok {
-			name = fmt.Sprintf("%v.%v", proc.Name, formation)
-		} else {
-			name = fmt.Sprintf("%v.%v", proc.Name, 0)
-		}
-
+		name := fmt.Sprintf("%v.%v", proc.Name, r.Formation[proc.Name])
 		if _, ok := nameDict[normalizeByEnvVarRules(name)]; ok {
 			return ErrNonUniqueProcessTypeName
 		}
@@ -298,13 +292,8 @@ func (r *Runner) runBuilds(ctx context.Context, fn string) bool {
 		if !strings.HasPrefix(sv.Name, "build") {
 			continue
 		}
-		quantity := 0
-		if len(r.Formation) == 0 {
-			quantity = 1
-		} else if formation, ok := r.Formation[sv.Name]; ok {
-			quantity = formation
-		}
-		for i := 0; i < quantity; i++ {
+		maxProc := r.Formation[sv.Name]
+		for i := 0; i < maxProc; i++ {
 			r.setServiceDiscovery(normalizeByEnvVarRules(sv.Name), "building")
 			wgBuild.Add(1)
 			go func(sv *ProcessType) {
@@ -343,12 +332,7 @@ func (r *Runner) runPermanent(changedFileName string) *oversight.Tree {
 		if strings.HasPrefix(sv.Name, "build") {
 			continue
 		}
-		var maxProc int
-		if len(r.Formation) == 0 {
-			maxProc = 1
-		} else if formation, ok := r.Formation[sv.Name]; ok {
-			maxProc = formation
-		}
+		maxProc := r.Formation[sv.Name]
 		portCount := j * 100
 		for i := 0; i < maxProc; i++ {
 			sv, i, pc := sv, i, portCount
@@ -383,12 +367,7 @@ func (r *Runner) runEphemeral(ctx context.Context, changedFileName string) {
 		if strings.HasPrefix(sv.Name, "build") {
 			continue
 		}
-		var maxProc int
-		if len(r.Formation) == 0 {
-			maxProc = 1
-		} else if formation, ok := r.Formation[sv.Name]; ok {
-			maxProc = formation
-		}
+		maxProc := r.Formation[sv.Name]
 		portCount := j * 100
 		for i := 0; i < maxProc; i++ {
 			sv, i, pc := sv, i, portCount
@@ -440,10 +419,7 @@ func (r *Runner) prepareStaticServiceDiscovery() {
 		if strings.HasPrefix(sv.Name, "build") {
 			continue
 		}
-		maxProc := 1
-		if formation, ok := r.Formation[sv.Name]; ok {
-			maxProc = formation
-		}
+		maxProc := r.Formation[sv.Name]
 		portCount := j * 100
 		for i := 0; i < maxProc; i++ {
 			if sv.Restart == Loop || sv.Restart == Temporary || sv.Restart == OnFailure {

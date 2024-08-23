@@ -119,6 +119,21 @@ func main() {
 			Value: ".env",
 			Usage: "environment `file` to be loaded for all processes, if the file is absent, then this parameter is ignored.",
 		},
+		cli.StringFlag{
+			Name:  "skip",
+			Value: "",
+			Usage: "does not run some of the process types, format: `procTypeA procTypeB procTypeN`",
+		},
+		cli.StringFlag{
+			Name:  "only",
+			Value: "",
+			Usage: "only runs some of the process types, format: `procTypeA procTypeB procTypeN`",
+		},
+		cli.StringFlag{
+			Name:  "optional",
+			Value: "",
+			Usage: "forcefully runs some of the process types, format: `procTypeA procTypeB procTypeN`",
+		},
 	}
 	app.Commands = []cli.Command{logs()}
 	app.Action = mainRunner
@@ -195,8 +210,36 @@ func mainRunner(c *cli.Context) error {
 		}
 		s.BasePort = basePort
 	}
-	if len(s.Formation) == 0 && formation != "" {
-		s.Formation = procfile.ParseFormation(formation)
+	if len(s.Formation) == 0 {
+		switch {
+		case formation != "":
+			s.Formation = procfile.ParseFormation(formation)
+		default:
+			s.Formation = make(map[string]int, len(s.Processes))
+			for _, proc := range s.Processes {
+				if _, ok := s.Formation[proc.Name]; !ok {
+					s.Formation[proc.Name] = 1
+				}
+			}
+		}
+	}
+	if c.IsSet("skip") {
+		for _, procName := range strings.Fields(c.String("skip")) {
+			s.Formation[procName] = 0
+		}
+	}
+	if c.IsSet("optional") {
+		procNames := strings.Fields(c.String("optional"))
+		for _, procName := range procNames {
+			s.Formation[procName] = 1
+		}
+	}
+	if c.IsSet("only") {
+		procNames := strings.Fields(c.String("only"))
+		s.Formation = make(map[string]int, len(procNames))
+		for _, procName := range procNames {
+			s.Formation[procName] = 1
+		}
 	}
 	s.WorkDir = os.ExpandEnv(s.WorkDir)
 	if s.WorkDir == "" {
