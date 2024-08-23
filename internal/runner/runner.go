@@ -26,10 +26,12 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	oversight "cirello.io/oversight"
@@ -745,4 +747,27 @@ func ParseSignal(s string) Signal {
 	default:
 		return SignalKILL
 	}
+}
+
+func command(ctx context.Context, cmd string, signal Signal, signalTimeout time.Duration) *exec.Cmd {
+	c := exec.CommandContext(ctx, "sh", "-c", cmd)
+	c.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	c.Cancel = func() error {
+		pgid := -c.Process.Pid
+		osSignal := syscall.SIGKILL
+		if signal == SignalTERM {
+			osSignal = syscall.SIGTERM
+		}
+		if err := c.Process.Signal(osSignal); err != nil {
+			return fmt.Errorf("cannot signal process: %w", err)
+		}
+		if err := syscall.Kill(pgid, osSignal); err != nil {
+			return fmt.Errorf("cannot signal process group: %w", err)
+		}
+		if signalTimeout > 0 {
+			time.Sleep(signalTimeout)
+		}
+		return nil
+	}
+	return c
 }

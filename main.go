@@ -80,6 +80,7 @@ import (
 	"os/signal"
 	"strings"
 	"sync"
+	"syscall"
 
 	"cirello.io/runner/v2/internal/envfile"
 	"cirello.io/runner/v2/internal/procfile"
@@ -225,7 +226,7 @@ func mainRunner(c *cli.Context) error {
 		s.WorkDir = wd
 	}
 
-	ctx, cancel := signal.NotifyContext(context.Background(), haltSignals()...)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
 	s.BasePort = basePort
