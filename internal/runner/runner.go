@@ -112,9 +112,6 @@ type ProcessType struct {
 	// before releasing it.
 	SignalWait time.Duration
 
-	// Sticky processes are not interrupted by filesystem events.
-	Sticky bool
-
 	// Optional processes are the ones skipped by default during start. The
 	// user must explicitly tell this process to start.
 	Optional bool
@@ -334,12 +331,7 @@ func (r *Runner) runBuilds(ctx context.Context, fn string) bool {
 				}
 				r.setServiceDiscovery(normalizeByEnvVarRules(sv.Name), status)
 			}()
-			c := ctx
-			if sv.Sticky {
-				log.Println(sv.Name, "is sticky")
-				c = context.Background()
-			}
-			if !r.startProcess(c, sv, -1, -1, fn, &buf) {
+			if !r.startProcess(ctx, sv, -1, -1, fn, &buf) {
 				mu.Lock()
 				ok = false
 				localOk = false

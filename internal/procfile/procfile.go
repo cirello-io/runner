@@ -62,9 +62,6 @@
 // - signalWait (in process types): duration to wait after sending the signal to
 // the process.
 //
-// - sticky (in build process types): a sticky build is not interrupted when
-// file changes are detected.
-//
 // - optional (in process types): does not start this process unless explicit
 // told so.
 package procfile
@@ -124,14 +121,6 @@ func Parse(r io.Reader) (*runner.Runner, error) {
 			for _, part := range parts {
 				if strings.HasPrefix(part, "waitfor=") {
 					proc.WaitFor = strings.TrimPrefix(part, "waitfor=")
-					continue
-				}
-				if strings.HasPrefix(part, "sticky=") {
-					sticky, err := strconv.ParseBool(strings.TrimPrefix(part, "sticky="))
-					if err != nil {
-						return rnr, err
-					}
-					proc.Sticky = sticky
 					continue
 				}
 				if strings.HasPrefix(part, "restart=") {

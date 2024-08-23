@@ -51,9 +51,6 @@ types will halt and not restart.
 - signalWait (in process types): duration to wait after sending the signal to
 the process.
 
-- sticky (in build process types): a sticky build is not interrupted when file
-changes are detected.
-
 - optional (in process types): does not start this process unless explicit told
 so.
 

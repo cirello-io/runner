@@ -32,8 +32,8 @@ observe: *.go *.js
 ignore: /vendor
 build-server: make server
 web: group=service restart=onbuild waitfor=localhost:8888 ./server serve
-web2: sticky=1 group=service restart=fail waitfor=localhost:8888 ./server serve
-web3: sticky=1 group=service restart=fail optional=true waitfor=localhost:8888 ./server serve
+web2: group=service restart=fail waitfor=localhost:8888 ./server serve
+web3: group=service restart=fail optional=true waitfor=localhost:8888 ./server serve
 formation: web=1 web2=2 web3=1
 malformed-line`
 
@@ -68,7 +68,6 @@ malformed-line`
 			WaitFor: "localhost:8888",
 			Restart: runner.OnFailure,
 			Group:   "service",
-			Sticky:  true,
 		},
 		{
 			Name: "web3",
@@ -77,7 +76,6 @@ malformed-line`
 			WaitFor:  "localhost:8888",
 			Restart:  runner.OnFailure,
 			Group:    "service",
-			Sticky:   true,
 			Optional: true,
 		},
 	}
