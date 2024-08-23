@@ -78,6 +78,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"syscall"
@@ -91,12 +92,24 @@ import (
 const defaultProcfile = "Procfile"
 
 func main() {
+	var version string
+	if info, ok := debug.ReadBuildInfo(); ok {
+		for _, kv := range info.Settings {
+			if kv.Key == "vcs.revision" {
+				version = kv.Value
+			}
+		}
+	}
 	log.SetFlags(0)
 	log.SetPrefix("runner: ")
 	app := cli.NewApp()
 	app.Name = "runner"
 	app.Usage = "simple Procfile runner"
-	app.HideVersion = true
+	if version != "" {
+		app.Version = "v2 (" + version + ")"
+	} else {
+		app.HideVersion = true
+	}
 	app.EnableBashCompletion = false
 	app.Flags = []cli.Flag{
 		cli.IntFlag{
