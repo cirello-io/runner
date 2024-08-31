@@ -19,9 +19,9 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"crypto/sha1"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"io"
 	"log"
 	"net"
@@ -278,7 +278,7 @@ func calcFileHash(fn string) string {
 		return ""
 	}
 	defer f.Close()
-	h := sha1.New()
+	h := fnv.New32a()
 	if _, err := io.Copy(h, f); err != nil {
 		return ""
 	}
