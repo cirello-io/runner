@@ -24,6 +24,7 @@ import (
 	"hash/fnv"
 	"io"
 	"log"
+	"maps"
 	"net"
 	"os"
 	"os/exec"
@@ -35,6 +36,7 @@ import (
 	"time"
 
 	oversight "cirello.io/oversight"
+	git "github.com/go-git/go-git/v5"
 )
 
 // ErrNonUniqueProcessTypeName is returned when starting the runner, it detects
@@ -563,6 +565,85 @@ func (r *Runner) deleteServiceDiscovery(svc string) {
 }
 
 func (s *Runner) monitorWorkDir(ctx context.Context) <-chan string {
+	if worktree := isValidGitDir(s.WorkDir); worktree != nil {
+		log.Println("observing git directory for changes")
+		return s.monitorGitDir(ctx, worktree)
+	}
+	return s.monitorWorkDirScanner(ctx)
+}
+
+func isValidGitDir(dir string) *git.Worktree {
+	repo, err := git.PlainOpen(dir)
+	if err != nil {
+		return nil
+	}
+	worktree, err := repo.Worktree()
+	if err != nil {
+		return nil
+	}
+	_, err = worktree.Status()
+	if err != nil {
+		return nil
+	}
+	return worktree
+}
+
+func (s *Runner) monitorGitDir(ctx context.Context, worktree *git.Worktree) <-chan string {
+	triggereds := make(chan string, 1)
+	memo := make(map[string]time.Time)
+	go func() {
+		t := backoff(ctx, 50*time.Millisecond, 250*time.Millisecond, 5*time.Second)
+		for range t {
+			statuses, err := worktree.Status()
+			if err != nil {
+				log.Println("cannot get worktree status:", err)
+				continue
+			}
+			files := slices.Concat(
+				slices.Collect(maps.Keys(statuses)),
+				slices.Collect(maps.Keys(memo)),
+			)
+		filesLoop:
+			for _, path := range files {
+				for _, skipDir := range s.SkipDirs {
+					if skipDir == "" {
+						continue
+					}
+					if strings.HasPrefix(path, skipDir) {
+						continue filesLoop
+					}
+				}
+				for _, p := range s.Observables {
+					if !match(p, path) {
+						continue
+					}
+					info, err := os.Stat(filepath.Join(s.WorkDir, path))
+					if err != nil {
+						delete(memo, path)
+						continue
+					}
+					mtime := info.ModTime()
+					memoMTime, ok := memo[path]
+					if !ok {
+						memo[path] = mtime
+						memoMTime = mtime
+					}
+					if !mtime.Equal(memoMTime) {
+						memo[path] = mtime
+						select {
+						case triggereds <- path:
+						default:
+						}
+					}
+				}
+			}
+		}
+	}()
+	go func() { triggereds <- "" }()
+	return triggereds
+}
+
+func (s *Runner) monitorWorkDirScanner(ctx context.Context) <-chan string {
 	triggereds := make(chan string, 1)
 	memo := make(map[string]time.Time)
 	go func() {
