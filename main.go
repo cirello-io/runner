@@ -78,6 +78,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime/debug"
 	"strings"
 	"sync"
@@ -251,6 +252,10 @@ func mainRunner(c *cli.Context) error {
 			return fmt.Errorf("cannot load current workdir: %v", err)
 		}
 		s.WorkDir = wd
+	}
+	s.WorkDir, err = filepath.Abs(s.WorkDir)
+	if err != nil {
+		return fmt.Errorf("cannot find absolute path for workdir: %v", err)
 	}
 	if _, err := os.Stat(s.WorkDir); err != nil {
 		return fmt.Errorf("cannot find work directory: %w", err)
