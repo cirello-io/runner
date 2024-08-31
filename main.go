@@ -86,7 +86,7 @@ import (
 	"cirello.io/runner/v2/internal/envfile"
 	"cirello.io/runner/v2/internal/procfile"
 	"cirello.io/runner/v2/internal/runner"
-	cli "github.com/urfave/cli"
+	cli "github.com/urfave/cli/v2"
 )
 
 const defaultProcfile = "Procfile"
@@ -112,43 +112,43 @@ func main() {
 	}
 	app.EnableBashCompletion = false
 	app.Flags = []cli.Flag{
-		cli.IntFlag{
+		&cli.IntFlag{
 			Name:  "port",
 			Value: 0,
 			Usage: "base IP port used to set $PORT for each process type. Should be multiple of 1000.",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "service-discovery",
 			Value: "localhost:64000",
 			Usage: "service discovery address",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "formation",
 			Value: "",
 			Usage: "formation allows to control how many instances of a process type are started, format: `procTypeA:# procTypeB:# ... procTypeN:#`. If `procType` is absent, it is not started. Empty formations start one of each process.",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "env",
 			Value: ".env",
 			Usage: "environment `file` to be loaded for all processes, if the file is absent, then this parameter is ignored.",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "skip",
 			Value: "",
 			Usage: "does not run some of the process types, format: `procTypeA procTypeB procTypeN`",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "only",
 			Value: "",
 			Usage: "only runs some of the process types, format: `procTypeA procTypeB procTypeN`",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "optional",
 			Value: "",
 			Usage: "forcefully runs some of the process types, format: `procTypeA procTypeB procTypeN`",
 		},
 	}
-	app.Commands = []cli.Command{logs()}
+	app.Commands = []*cli.Command{logs()}
 	app.Action = mainRunner
 	if err := app.Run(os.Args); err != nil {
 		log.Fatal(err)
@@ -272,12 +272,12 @@ func mainRunner(c *cli.Context) error {
 	return nil
 }
 
-func logs() cli.Command {
-	return cli.Command{
+func logs() *cli.Command {
+	return &cli.Command{
 		Name:  "logs",
 		Usage: "Follows logs from running processes",
 		Flags: []cli.Flag{
-			cli.StringFlag{
+			&cli.StringFlag{
 				Name:  "filter",
 				Usage: "service name to filter message",
 			},
@@ -285,7 +285,7 @@ func logs() cli.Command {
 		Action: func(c *cli.Context) error {
 			ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 			defer stop()
-			u := url.URL{Scheme: "http", Host: c.GlobalString("service-discovery"), Path: "/logs"}
+			u := url.URL{Scheme: "http", Host: c.String("service-discovery"), Path: "/logs"}
 			if filter := c.String("filter"); filter != "" {
 				query := u.Query()
 				query.Set("filter", filter)
