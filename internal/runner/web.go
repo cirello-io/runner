@@ -48,6 +48,21 @@ func (r *Runner) unsubscribeLogFwd(stream chan LogMessage) {
 	})
 }
 
+func (r *Runner) forwardLogs() {
+	go func() {
+		for msg := range r.logs {
+			r.logsMu.RLock()
+			for _, subscriber := range r.logSubscribers {
+				select {
+				case subscriber <- msg:
+				default:
+				}
+			}
+			r.logsMu.RUnlock()
+		}
+	}()
+}
+
 func (r *Runner) serveWeb(ctx context.Context) error {
 	addr := r.ServiceDiscoveryAddr
 	if addr == "" {

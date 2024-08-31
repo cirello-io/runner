@@ -204,23 +204,9 @@ func (r *Runner) Start(rootCtx context.Context) error {
 	if err := r.serveWeb(rootCtx); err != nil {
 		return fmt.Errorf("cannot serve discovery interface: %w", err)
 	}
-	go func() {
-		for msg := range r.logs {
-			r.logsMu.RLock()
-			for _, subscriber := range r.logSubscribers {
-				select {
-				case subscriber <- msg:
-				default:
-				}
-			}
-			r.logsMu.RUnlock()
-		}
-	}()
-	updates, err := r.monitorWorkDir(rootCtx)
-	if err != nil {
-		return err
-	}
+	r.forwardLogs()
 	r.prepareStaticServiceDiscovery()
+	updates := r.monitorWorkDir(rootCtx)
 	run := make(chan string, 1)
 	fileHashes := make(map[string]string) // fn to hash
 	c, cancel := context.WithCancel(rootCtx)
@@ -576,10 +562,7 @@ func (r *Runner) deleteServiceDiscovery(svc string) {
 	r.sdMu.Unlock()
 }
 
-func (s *Runner) monitorWorkDir(ctx context.Context) (<-chan string, error) {
-	if _, err := os.Stat(s.WorkDir); err != nil {
-		return nil, err
-	}
+func (s *Runner) monitorWorkDir(ctx context.Context) <-chan string {
 	triggereds := make(chan string, 1)
 	memo := make(map[string]time.Time)
 	go func() {
@@ -623,7 +606,7 @@ func (s *Runner) monitorWorkDir(ctx context.Context) (<-chan string, error) {
 		}
 	}()
 	go func() { triggereds <- "" }()
-	return triggereds, nil
+	return triggereds
 }
 
 func match(p, path string) bool {

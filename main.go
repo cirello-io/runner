@@ -252,6 +252,9 @@ func mainRunner(c *cli.Context) error {
 		}
 		s.WorkDir = wd
 	}
+	if _, err := os.Stat(s.WorkDir); err != nil {
+		return fmt.Errorf("cannot find work directory: %w", err)
+	}
 	if envFN := c.String("env"); envFN != "" {
 		fd, err := os.Open(envFN)
 		if err == nil {
