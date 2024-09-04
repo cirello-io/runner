@@ -71,6 +71,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -87,7 +88,6 @@ import (
 	"cirello.io/runner/v2/internal/envfile"
 	"cirello.io/runner/v2/internal/procfile"
 	"cirello.io/runner/v2/internal/runner"
-	cli "github.com/urfave/cli/v2"
 )
 
 const defaultProcfile = "Procfile"
@@ -103,60 +103,41 @@ func main() {
 	}
 	log.SetFlags(0)
 	log.SetPrefix("runner: ")
-	app := cli.NewApp()
-	app.Name = "runner"
-	app.Usage = "simple Procfile runner"
-	if version != "" {
-		app.Version = "v2 (" + version + ")"
-	} else {
-		app.HideVersion = true
+	flagset := flag.NewFlagSet("runner", flag.ContinueOnError)
+	flagset.Usage = func() {
+		fmt.Fprintln(flagset.Output(), "runner - a simple Procfile runner (v2-"+version+")")
+		fmt.Fprintln(flagset.Output(), "")
+		fmt.Fprintln(flagset.Output(), "Usage:")
+		fmt.Fprintln(flagset.Output(), " ", os.Args[0], "[options] [Procfile]")
+		fmt.Fprintln(flagset.Output(), "")
+		flagset.PrintDefaults()
+		fmt.Fprintln(flagset.Output(), "")
 	}
-	app.EnableBashCompletion = false
-	app.Flags = []cli.Flag{
-		&cli.IntFlag{
-			Name:  "port",
-			Value: 0,
-			Usage: "base IP port used to set $PORT for each process type. Should be multiple of 1000.",
-		},
-		&cli.StringFlag{
-			Name:  "service-discovery",
-			Value: "localhost:64000",
-			Usage: "service discovery address",
-		},
-		&cli.StringFlag{
-			Name:  "formation",
-			Value: "",
-			Usage: "formation allows to control how many instances of a process type are started, format: `procTypeA:# procTypeB:# ... procTypeN:#`. If `procType` is absent, it is not started. Empty formations start one of each process.",
-		},
-		&cli.StringFlag{
-			Name:  "env",
-			Value: ".env",
-			Usage: "environment `file` to be loaded for all processes, if the file is absent, then this parameter is ignored.",
-		},
-		&cli.StringFlag{
-			Name:  "skip",
-			Value: "",
-			Usage: "does not run some of the process types, format: `procTypeA procTypeB procTypeN`",
-		},
-		&cli.StringFlag{
-			Name:  "only",
-			Value: "",
-			Usage: "only runs some of the process types, format: `procTypeA procTypeB procTypeN`",
-		},
-		&cli.StringFlag{
-			Name:  "optional",
-			Value: "",
-			Usage: "forcefully runs some of the process types, format: `procTypeA procTypeB procTypeN`",
-		},
+	flagset.Int("port", 0, "base IP port used to set $PORT for each process type. Should be multiple of 1000.")
+	flagset.String("service-discovery", "localhost:64000", "service discovery address")
+	flagset.String("formation", "", "formation allows to control how many instances of a process type are started, format: `procTypeA:# procTypeB:# ... procTypeN:#`. If `procType` is absent, it is not started. Empty formations start one of each process.")
+	flagset.String("env", ".env", "environment `file` to be loaded for all processes, if the file is absent, then this parameter is ignored.")
+	flagset.String("skip", "", "does not run some of the process types, format: `procTypeA procTypeB procTypeN`")
+	flagset.String("only", "", "only runs some of the process types, format: `procTypeA procTypeB procTypeN`")
+	flagset.String("optional", "", "forcefully runs some of the process types, format: `procTypeA procTypeB procTypeN`")
+	flagset.String("filter", "", "service name to filter message")
+	if err := flagset.Parse(os.Args[1:]); err == flag.ErrHelp {
+		return
+	} else if err != nil {
+		log.Fatal(err)
 	}
-	app.Commands = []*cli.Command{logs()}
-	app.Action = mainRunner
-	if err := app.Run(os.Args); err != nil {
+	if flagset.Arg(0) == "logs" {
+		err := logs(flagset)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	if err := mainRunner(flagset); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func mainRunner(c *cli.Context) error {
+func mainRunner(flagset *flag.FlagSet) error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 	actualStdout := os.Stdout
@@ -203,7 +184,7 @@ func mainRunner(c *cli.Context) error {
 		}
 	}()
 	fn := defaultProcfile
-	if argFn := c.Args().First(); argFn != "" {
+	if argFn := flagset.Arg(0); argFn != "" {
 		fn = argFn
 	}
 	fd, err := os.Open(fn)
@@ -217,29 +198,29 @@ func mainRunner(c *cli.Context) error {
 	if err := fd.Close(); err != nil {
 		return fmt.Errorf("cannot close spec file reader (procfile): %v", err)
 	}
-	if c.IsSet("port") {
-		basePort := c.Int("port")
+	if port, ok := flagset.Lookup("port").Value.(flag.Getter).Get().(int); ok && port > 0 {
+		basePort := port
 		if basePort < 1 || basePort > 65535 {
 			return errors.New("invalid IP port")
 		}
 		s.BasePort = basePort
 	}
-	if c.IsSet("formation") {
-		s.Formation = procfile.ParseFormation(c.String("formation"))
+	if formation := flagset.Lookup("formation").Value.String(); formation != "" {
+		s.Formation = procfile.ParseFormation(formation)
 	}
-	if c.IsSet("skip") {
-		for _, procName := range strings.Fields(c.String("skip")) {
+	if skip := flagset.Lookup("skip").Value.String(); skip != "" {
+		for _, procName := range strings.Fields(skip) {
 			s.Formation[procName] = 0
 		}
 	}
-	if c.IsSet("optional") {
-		procNames := strings.Fields(c.String("optional"))
+	if optional := flagset.Lookup("optional").Value.String(); optional != "" {
+		procNames := strings.Fields(optional)
 		for _, procName := range procNames {
 			s.Formation[procName] = 1
 		}
 	}
-	if c.IsSet("only") {
-		procNames := strings.Fields(c.String("only"))
+	if only := flagset.Lookup("only").Value.String(); only != "" {
+		procNames := strings.Fields(only)
 		s.Formation = make(map[string]int, len(procNames))
 		for _, procName := range procNames {
 			s.Formation[procName] = 1
@@ -260,7 +241,7 @@ func mainRunner(c *cli.Context) error {
 	if _, err := os.Stat(s.WorkDir); err != nil {
 		return fmt.Errorf("cannot find work directory: %w", err)
 	}
-	if envFN := c.String("env"); envFN != "" {
+	if envFN := flagset.Lookup("env").Value.String(); envFN != "" {
 		fd, err := os.Open(envFN)
 		if err == nil {
 			baseEnv, err := envfile.Parse(fd)
@@ -273,78 +254,66 @@ func mainRunner(c *cli.Context) error {
 			s.BaseEnvironment = baseEnv
 		}
 	}
-	s.ServiceDiscoveryAddr = c.String("service-discovery")
+	s.ServiceDiscoveryAddr = flagset.Lookup("service-discovery").Value.String()
 	if err := s.Start(ctx); err != nil {
 		return fmt.Errorf("cannot serve: %v", err)
 	}
 	return nil
 }
 
-func logs() *cli.Command {
-	return &cli.Command{
-		Name:  "logs",
-		Usage: "Follows logs from running processes",
-		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:  "filter",
-				Usage: "service name to filter message",
-			},
-		},
-		Action: func(c *cli.Context) error {
-			ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-			defer stop()
-			u := url.URL{Scheme: "http", Host: c.String("service-discovery"), Path: "/logs"}
-			if filter := c.String("filter"); filter != "" {
-				query := u.Query()
-				query.Set("filter", filter)
-				u.RawQuery = query.Encode()
+func logs(flagset *flag.FlagSet) error {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+	u := url.URL{Scheme: "http", Host: flagset.Lookup("service-discovery").Value.String(), Path: "/logs"}
+	if filter := flagset.Lookup("filter").Value.String(); filter != "" {
+		query := u.Query()
+		query.Set("filter", filter)
+		u.RawQuery = query.Encode()
+	}
+	log.Printf("connecting to %s", u.String())
+	follow := func() (outErr error) {
+		req, err := http.NewRequestWithContext(ctx, "GET", u.String(), nil)
+		if err != nil {
+			return fmt.Errorf("cannot create request: %v", err)
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return fmt.Errorf("cannot connect to service discovery endpoint: %v", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("bad status: %s", resp.Status)
+		}
+		br := bufio.NewReaderSize(resp.Body, 10*1024*1024)
+		for {
+			if ctx.Err() != nil {
+				return nil
 			}
-			log.Printf("connecting to %s", u.String())
-			follow := func() (outErr error) {
-				req, err := http.NewRequestWithContext(ctx, "GET", u.String(), nil)
-				if err != nil {
-					return fmt.Errorf("cannot create request: %v", err)
-				}
-				resp, err := http.DefaultClient.Do(req)
-				if err != nil {
-					return fmt.Errorf("cannot connect to service discovery endpoint: %v", err)
-				}
-				defer resp.Body.Close()
-				if resp.StatusCode != http.StatusOK {
-					return fmt.Errorf("bad status: %s", resp.Status)
-				}
-				br := bufio.NewReaderSize(resp.Body, 10*1024*1024)
-				for {
-					if ctx.Err() != nil {
-						return nil
-					}
-					l, partialRead, err := br.ReadLine()
-					if errors.Is(err, io.EOF) {
-						return nil
-					} else if err != nil {
-						return err
-					} else if partialRead {
-						return fmt.Errorf("partial read: %v", string(l))
-					}
-					l = bytes.TrimSpace(bytes.TrimPrefix(l, []byte("data: ")))
-					if len(l) == 0 {
-						continue
-					}
-					var msg runner.LogMessage
-					if err := json.Unmarshal(l, &msg); err != nil {
-						log.Println("decode:", err)
-						return err
-					}
-					fmt.Println(msg.PaddedName+":", msg.Line)
-				}
+			l, partialRead, err := br.ReadLine()
+			if errors.Is(err, io.EOF) {
+				return nil
+			} else if err != nil {
+				return err
+			} else if partialRead {
+				return fmt.Errorf("partial read: %v", string(l))
 			}
-			var errFollow error
-			for {
-				if ctx.Err() != nil {
-					return errFollow
-				}
-				errFollow = follow()
+			l = bytes.TrimSpace(bytes.TrimPrefix(l, []byte("data: ")))
+			if len(l) == 0 {
+				continue
 			}
-		},
+			var msg runner.LogMessage
+			if err := json.Unmarshal(l, &msg); err != nil {
+				log.Println("decode:", err)
+				return err
+			}
+			fmt.Println(msg.PaddedName+":", msg.Line)
+		}
+	}
+	var errFollow error
+	for {
+		if ctx.Err() != nil {
+			return errFollow
+		}
+		errFollow = follow()
 	}
 }
