@@ -234,7 +234,7 @@ func mainRunner(flagset *flag.FlagSet) error {
 		}
 		s.WorkDir = wd
 	}
-	s.WorkDir, err = filepath.Abs(s.WorkDir)
+	s.WorkDir, err = filepath.Abs(filepath.Clean(s.WorkDir))
 	if err != nil {
 		return fmt.Errorf("cannot find absolute path for workdir: %v", err)
 	}

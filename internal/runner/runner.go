@@ -36,7 +36,6 @@ import (
 	"time"
 
 	oversight "cirello.io/oversight"
-	git "github.com/go-git/go-git/v5"
 )
 
 // ErrNonUniqueProcessTypeName is returned when starting the runner, it detects
@@ -565,42 +564,46 @@ func (r *Runner) deleteServiceDiscovery(svc string) {
 }
 
 func (s *Runner) monitorWorkDir(ctx context.Context) <-chan string {
-	if worktree := isValidGitDir(s.WorkDir); worktree != nil {
+	if isValidGitDir(s.WorkDir) {
 		log.Println("observing git directory for changes")
-		return s.monitorGitDir(ctx, worktree)
+		return s.monitorGitDir(ctx, s.WorkDir)
 	}
 	return s.monitorWorkDirScanner(ctx)
 }
 
-func isValidGitDir(dir string) *git.Worktree {
-	repo, err := git.PlainOpen(dir)
-	if err != nil {
-		return nil
-	}
-	worktree, err := repo.Worktree()
-	if err != nil {
-		return nil
-	}
-	_, err = worktree.Status()
-	if err != nil {
-		return nil
-	}
-	return worktree
+func isValidGitDir(dir string) bool {
+	err := exec.Command("git", "-C", dir, "--no-optional-locks", "status").Run()
+	return err == nil
 }
 
-func (s *Runner) monitorGitDir(ctx context.Context, worktree *git.Worktree) <-chan string {
+func (s *Runner) monitorGitDir(ctx context.Context, dir string) <-chan string {
 	triggereds := make(chan string, 1)
 	memo := make(map[string]time.Time)
 	go func() {
 		t := backoff(ctx, 50*time.Millisecond, 250*time.Millisecond, 5*time.Second)
 		for range t {
-			statuses, err := worktree.Status()
-			if err != nil {
-				log.Println("cannot get worktree status:", err)
+			cmd := exec.Command("git", "-C", dir, "--no-optional-locks", "status", "--porcelain=v1")
+			var out bytes.Buffer
+			cmd.Stdout = &out
+			if err := cmd.Run(); err != nil {
+				log.Println("cannot run git status:", err)
 				continue
 			}
+			var gitfiles []string
+			scanner := bufio.NewScanner(&out)
+			for scanner.Scan() {
+				line := scanner.Text()
+				if len(line) < 4 || line[0] == '#' {
+					continue
+				}
+				path := line[3:]
+				if path == "" {
+					continue
+				}
+				gitfiles = append(gitfiles, path)
+			}
 			files := slices.Concat(
-				slices.Collect(maps.Keys(statuses)),
+				gitfiles,
 				slices.Collect(maps.Keys(memo)),
 			)
 		filesLoop:
