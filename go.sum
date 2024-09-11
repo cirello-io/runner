@@ -1,7 +1,7 @@
 cirello.io/oversight v1.4.0 h1:wYxebS4OGYQz/c/kcGcqxINPuJDbLNnVloQIsdSWua0=
 cirello.io/oversight v1.4.0/go.mod h1:gDVpsAKKoNtDhEWd1PjD4yBE6r6y5bXSHpOQ2joJF6E=
-github.com/buildkite/terminal-to-html/v3 v3.16.1 h1:HpKr83Qop8mAeO4pW5wc3j0k0Eby6s4XRJ5dKlvuFeY=
-github.com/buildkite/terminal-to-html/v3 v3.16.1/go.mod h1:tdi6+MA4AjV5udS5cm8PVxLHsbJWLGsr5W/tHFzPgbY=
+github.com/buildkite/terminal-to-html/v3 v3.16.2 h1:ueVE+BUqKOK3O4p+oul1y4Lo0sq7Qoj2Fb6/DJOrxYM=
+github.com/buildkite/terminal-to-html/v3 v3.16.2/go.mod h1:tdi6+MA4AjV5udS5cm8PVxLHsbJWLGsr5W/tHFzPgbY=
 github.com/google/go-cmp v0.6.0 h1:ofyhxvXcZhMsU5ulbFiLKl/XBFqE1GSq7atu8tAmTRI=
 github.com/google/go-cmp v0.6.0/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
 golang.org/x/tools v0.25.0 h1:oFU9pkj/iJgs+0DT+VMHrx+oBKs/LJMV+Uvg78sl+fE=
