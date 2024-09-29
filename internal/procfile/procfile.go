@@ -65,6 +65,7 @@ package procfile
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"strconv"
@@ -74,8 +75,8 @@ import (
 	"cirello.io/runner/v2/internal/runner"
 )
 
-// ParseFormation interprets a string in the format "proc=quantity
-// proc2=quantity"
+// ParseFormation interprets a string in the format "proc: quantity
+// proc2: quantity"
 func ParseFormation(s string) map[string]int {
 	procs := strings.Split(s, " ")
 	ret := make(map[string]int, len(procs))
@@ -96,7 +97,7 @@ func ParseFormation(s string) map[string]int {
 // Parse takes a reader that contains an extended Procfile.
 func Parse(r io.Reader) (*runner.Runner, error) {
 	rnr := runner.New()
-	scanner := bufio.NewScanner(r)
+	scanner := bufio.NewScanner(preprocess(r))
 	for scanner.Scan() {
 		// loosen translation of the official regex:
 		// ^*([A-Za-z0-9_-]+):\s*(.+)$
@@ -168,4 +169,46 @@ func Parse(r io.Reader) (*runner.Runner, error) {
 		}
 	}
 	return rnr, scanner.Err()
+}
+
+func preprocess(fd io.Reader) io.Reader {
+	r, w := io.Pipe()
+	go func() {
+		defer w.Close()
+		scanner := bufio.NewScanner(fd)
+		for scanner.Scan() {
+			// loosen translation of the official regex:
+			// ^*([A-Za-z0-9_-]+):\s*(.+)$
+			line := strings.TrimSpace(scanner.Text())
+			if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "//") {
+				continue
+			}
+			procType, command, found := strings.Cut(line, ":")
+			if !found {
+				continue
+			}
+			if strings.ToLower(procType) == "include" {
+				include, err := os.Open(strings.TrimSpace(command))
+				if err != nil {
+					w.CloseWithError(err)
+					return
+				}
+				defer include.Close()
+				if _, err := io.Copy(w, include); err != nil {
+					w.CloseWithError(err)
+					return
+				}
+				continue
+			}
+			if _, err := fmt.Fprintln(w, line); err != nil {
+				w.CloseWithError(err)
+				return
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			w.CloseWithError(err)
+			return
+		}
+	}()
+	return r
 }
