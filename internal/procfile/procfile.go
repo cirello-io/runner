@@ -190,7 +190,14 @@ func preprocess(fd io.Reader) io.Reader {
 				continue
 			}
 			if strings.ToLower(procType) == "include" {
-				include, err := os.Open(strings.TrimSpace(command))
+				command := strings.TrimSpace(command)
+				if strings.HasPrefix(command, "optional=") {
+					command = strings.TrimPrefix(command, "optional=")
+					if _, err := os.Stat(command); err != nil {
+						continue
+					}
+				}
+				include, err := os.Open(command)
 				if err != nil {
 					w.CloseWithError(err)
 					return
