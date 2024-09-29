@@ -139,6 +139,11 @@ type Runner struct {
 	// to build process types.
 	Formation map[string]int // map of process type name and count
 
+	// SkipProcs is the list of process types that should not be started.
+	// This is useful to disable a process type that is not necessary for
+	// the current environment.
+	SkipProcs []string
+
 	// BaseEnvironment is the set of environment variables loaded into
 	// the service.
 	BaseEnvironment []string

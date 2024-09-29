@@ -128,6 +128,8 @@ func Parse(r io.Reader) (*runner.Runner, error) {
 			rnr.SkipDirs = strings.Split(command, " ")
 		case "formation":
 			rnr.Formation = ParseFormation(command)
+		case "skip":
+			rnr.SkipProcs = append(rnr.SkipProcs, strings.Fields(command)...)
 		default:
 			proc := runner.ProcessType{Name: procType}
 			parts := strings.Split(command, " ")

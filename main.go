@@ -209,9 +209,10 @@ func mainRunner(flagset *flag.FlagSet) error {
 		s.Formation = procfile.ParseFormation(formation)
 	}
 	if skip := flagset.Lookup("skip").Value.String(); skip != "" {
-		for _, procName := range strings.Fields(skip) {
-			s.Formation[procName] = 0
-		}
+		s.SkipProcs = strings.Fields(skip)
+	}
+	for _, procName := range s.SkipProcs {
+		s.Formation[procName] = 0
 	}
 	if optional := flagset.Lookup("optional").Value.String(); optional != "" {
 		procNames := strings.Fields(optional)
