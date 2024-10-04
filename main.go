@@ -83,7 +83,6 @@ import (
 	"runtime/debug"
 	"strings"
 	"sync"
-	"syscall"
 
 	"cirello.io/runner/v2/internal/envfile"
 	"cirello.io/runner/v2/internal/procfile"
@@ -138,7 +137,7 @@ func main() {
 }
 
 func mainRunner(flagset *flag.FlagSet) error {
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	ctx, stop := signal.NotifyContext(context.Background(), haltSignals()...)
 	defer stop()
 	actualStdout := os.Stdout
 	var (
@@ -263,7 +262,7 @@ func mainRunner(flagset *flag.FlagSet) error {
 }
 
 func logs(flagset *flag.FlagSet) error {
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	ctx, stop := signal.NotifyContext(context.Background(), haltSignals()...)
 	defer stop()
 	u := url.URL{Scheme: "http", Host: flagset.Lookup("service-discovery").Value.String(), Path: "/logs"}
 	if filter := flagset.Lookup("filter").Value.String(); filter != "" {
