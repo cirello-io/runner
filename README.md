@@ -138,7 +138,13 @@ IEEE Std 1003.1-2008 / IEEE POSIX P1003.2/ISO 9945.2 Shell and Tools.
 Non-compliant chars are replaced with an underscore (`_`) and name uniqueness is
 enforced.
 
+## Support
+
+`runner/v2` is officially supported in Unix platforms only. It may compile on
+MS-Windows but it is not going to have the same behavior as in Unix.
+
 ## Installation
 `go get cirello.io/runner/v2`
 
 https://pkg.go.dev/cirello.io/runner/v2
+
