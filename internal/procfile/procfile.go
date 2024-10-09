@@ -64,7 +64,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"cirello.io/runner/v3/internal/runner"
 )
@@ -127,18 +126,6 @@ func Parse(r io.Reader) (*runner.Runner, error) {
 				if strings.HasPrefix(part, "restart=") {
 					restartMode := strings.TrimPrefix(part, "restart=")
 					proc.Restart = runner.ParseRestartMode(restartMode)
-					continue
-				}
-				if strings.HasPrefix(part, "signal=") {
-					proc.Signal = runner.ParseSignal(strings.TrimPrefix(part, "signal="))
-					continue
-				}
-				if strings.HasPrefix(part, "timeout=") {
-					timeout, err := time.ParseDuration(strings.TrimPrefix(part, "timeout="))
-					if err != nil {
-						return rnr, err
-					}
-					proc.Timeout = timeout
 					continue
 				}
 				command = append(command, part)

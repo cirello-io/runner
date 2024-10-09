@@ -46,12 +46,6 @@ before starting the process type.
 build; "fail" will restart the process type on failure; "loop" restart the
 process when it naturally terminates; "temporary" runs the process only once.
 
-- signal (in process types): "SIGTERM", "term", or "15" terminates the process;
-"SIGKILL", "kill", or "9" kills the process. The default is "SIGKILL".
-
-- timeout (in process types): duration (in Go format) to wait after
-sending the signal to the process.
-
 ## CLI parameters
 
 ```Shell

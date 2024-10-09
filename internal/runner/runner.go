@@ -101,13 +101,6 @@ type ProcessType struct {
 	// - temporary|tmp: start the process once and skip restart on rebuild.
 	// Temporary processes do not show up in the discovery service.
 	Restart RestartMode `json:"restart,omitempty"`
-
-	// Signal indicates how a process should be halted.
-	Signal Signal
-
-	// Timeout indicates how long to wait for a process to be finished
-	// before releasing it.
-	Timeout time.Duration
 }
 
 // Runner defines how this application should be started.
@@ -429,7 +422,7 @@ func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, p
 	fmt.Fprintln(pw, "running", `"`+sv.Cmd+`"`)
 	defer fmt.Fprintln(pw, "finished", `"`+sv.Cmd+`"`)
 	fmt.Fprintln(pw)
-	c := command(ctx, sv.Cmd, sv.Signal, sv.Timeout)
+	c := command(ctx, sv.Cmd)
 	c.Dir = r.WorkDir
 	c.Env = os.Environ()
 	if len(r.BaseEnvironment) > 0 {
@@ -670,23 +663,6 @@ func match(p, path string) bool {
 	return true
 }
 
-// Signal is the signal to be sent to the process.
-type Signal string
-
-const (
-	SignalTERM Signal = "term"
-	SignalKILL Signal = "kill"
-)
-
-func ParseSignal(s string) Signal {
-	switch strings.ToLower(s) {
-	case "sigterm", "term", "15":
-		return SignalTERM
-	default:
-		return SignalKILL
-	}
-}
-
 func backoff(ctx context.Context, base, retry, max time.Duration) <-chan struct{} {
 	t := make(chan struct{})
 	go func() {
@@ -718,24 +694,19 @@ func backoff(ctx context.Context, base, retry, max time.Duration) <-chan struct{
 	return t
 }
 
-func command(ctx context.Context, cmd string, signal Signal, timeout time.Duration) *exec.Cmd {
+func command(ctx context.Context, cmd string) *exec.Cmd {
 	c := exec.CommandContext(ctx, "sh", "-c", cmd)
 	c.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	c.Cancel = func() error {
 		pgid := -c.Process.Pid
-		osSignal := syscall.SIGKILL
-		if signal == SignalTERM {
-			osSignal = syscall.SIGTERM
-		}
+		osSignal := syscall.SIGTERM
 		if err := c.Process.Signal(osSignal); err != nil {
 			return fmt.Errorf("cannot signal process: %w", err)
 		}
 		if err := syscall.Kill(pgid, osSignal); err != nil {
 			return fmt.Errorf("cannot signal process group: %w", err)
 		}
-		if timeout > 0 {
-			time.Sleep(timeout)
-		}
+		c.Process.Wait()
 		return nil
 	}
 	return c
