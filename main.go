@@ -128,35 +128,29 @@ func main() {
 		}
 		return
 	}
+	interceptStdout()
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, append(haltSignals(), syscall.SIGUSR1)...)
 	for {
 		var shouldRestart bool
-		func() {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-			go func() {
-				if <-signalCh == syscall.SIGUSR1 {
-					shouldRestart = true
-				}
-				cancel()
-			}()
-			if err := mainRunner(ctx, flagset); err != nil && !errors.Is(err, context.Canceled) {
-				log.Fatal(err)
+		ctx, cancel := context.WithCancel(context.Background())
+		go func() {
+			if <-signalCh == syscall.SIGUSR1 {
+				shouldRestart = true
 			}
+			cancel()
 		}()
+		if err := mainRunner(ctx, flagset); err != nil && !errors.Is(err, context.Canceled) {
+			log.Fatal(err)
+		}
 		if !shouldRestart {
 			break
 		}
 	}
 }
 
-func mainRunner(ctx context.Context, flagset *flag.FlagSet) error {
-	originalStdout := os.Stdout
+func interceptStdout() {
 	actualStdout := os.Stdout
-	defer func() {
-		os.Stdout = originalStdout
-	}()
 	var (
 		filterPatternMu sync.RWMutex
 		filterPattern   string
@@ -199,6 +193,9 @@ func mainRunner(ctx context.Context, flagset *flag.FlagSet) error {
 			log.Println("reading standard output:", err)
 		}
 	}()
+}
+
+func mainRunner(ctx context.Context, flagset *flag.FlagSet) error {
 	fn := defaultProcfile
 	if argFn := flagset.Arg(0); argFn != "" {
 		fn = argFn
