@@ -129,11 +129,6 @@ type Runner struct {
 	// application.
 	Processes []*ProcessType
 
-	// BasePort is the IP port number used to calculate an IP port for each
-	// process type and set to its $PORT environment variable. Build
-	// processes do not earn an IP port.
-	BasePort int
-
 	// Formation allows to start more than one process type each time. Each
 	// start will yield its own exclusive $PORT. Formation does not apply
 	// to build process types.
@@ -156,9 +151,8 @@ type Runner struct {
 	// variable named "DISCOVERY".
 	ServiceDiscoveryAddr string
 
-	sdMu                    sync.Mutex
-	dynamicServiceDiscovery map[string]string
-	staticServiceDiscovery  []string
+	servicesMu    sync.Mutex
+	serviceStates map[string]string // map of service name and state
 
 	logsMu         sync.RWMutex
 	logs           chan LogMessage
@@ -175,9 +169,9 @@ type LogMessage struct {
 // New creates a new runner ready to use.
 func New() *Runner {
 	return &Runner{
-		Formation:               make(map[string]int),
-		dynamicServiceDiscovery: make(map[string]string),
-		logs:                    make(chan LogMessage, sseLogForwarderBufferSize),
+		Formation:     make(map[string]int),
+		serviceStates: make(map[string]string),
+		logs:          make(chan LogMessage, sseLogForwarderBufferSize),
 	}
 }
 
@@ -211,7 +205,6 @@ func (r *Runner) Start(rootCtx context.Context) error {
 		return fmt.Errorf("cannot serve discovery interface: %w", err)
 	}
 	r.forwardLogs()
-	r.prepareStaticServiceDiscovery()
 	updates := r.monitorWorkDir(rootCtx)
 	run := make(chan string, 1)
 	fileHashes := make(map[string]string) // fn to hash
@@ -289,7 +282,7 @@ func (r *Runner) runBuilds(ctx context.Context, fn string) bool {
 		}
 		maxProc := r.Formation[sv.Name]
 		for i := 0; i < maxProc; i++ {
-			r.setServiceDiscovery(normalizeByEnvVarRules(sv.Name), "building")
+			r.setServiceState(normalizeByEnvVarRules(sv.Name), "building")
 			wgBuild.Add(1)
 			go func(sv *ProcessType) {
 				var buf bytes.Buffer
@@ -299,11 +292,11 @@ func (r *Runner) runBuilds(ctx context.Context, fn string) bool {
 					status := "done"
 					if !localOk {
 						status = "errored"
-						r.setServiceDiscovery("ERROR_"+normalizeByEnvVarRules(sv.Name), buf.String())
+						r.setServiceState("ERROR_"+normalizeByEnvVarRules(sv.Name), buf.String())
 					} else {
-						r.deleteServiceDiscovery("ERROR_" + normalizeByEnvVarRules(sv.Name))
+						r.deleteServiceState("ERROR_" + normalizeByEnvVarRules(sv.Name))
 					}
-					r.setServiceDiscovery(normalizeByEnvVarRules(sv.Name), status)
+					r.setServiceState(normalizeByEnvVarRules(sv.Name), status)
 				}()
 				if !r.startProcess(ctx, sv, -1, -1, fn, &buf) {
 					mu.Lock()
@@ -406,33 +399,6 @@ func (r *Runner) runEphemeral(ctx context.Context, changedFileName string) {
 	_ = tree.Start(ctx)
 }
 
-func (r *Runner) prepareStaticServiceDiscovery() {
-	if r.BasePort == 0 {
-		return
-	}
-	for j, sv := range r.Processes {
-		if strings.HasPrefix(sv.Name, "build") {
-			continue
-		}
-		maxProc := r.Formation[sv.Name]
-		portCount := j * 100
-		for i := 0; i < maxProc; i++ {
-			if sv.Restart == Loop || sv.Restart == Temporary || sv.Restart == OnFailure {
-				continue
-			}
-			r.staticServiceDiscovery = append(
-				r.staticServiceDiscovery,
-				fmt.Sprintf("%s=localhost:%d", discoveryEnvVar(sv.Name, i), r.BasePort+portCount),
-			)
-		}
-		portCount++
-	}
-}
-
-func discoveryEnvVar(name string, procCount int) string {
-	return normalizeByEnvVarRules(fmt.Sprintf("%s_%d_PORT", name, procCount))
-}
-
 // normalizeByEnvVarRules takes any name and rewrites it to be compliant with
 // the POSIX standards on shells section of IEEE Std 1003.1-2008 / IEEE POSIX
 // P1003.2/ISO 9945.2 Shell and Tools standard.
@@ -470,15 +436,8 @@ func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, p
 		c.Env = append(c.Env, r.BaseEnvironment...)
 	}
 	c.Env = append(c.Env, fmt.Sprintf("PS=%v", procName))
-	if isPortEnabled := r.BasePort > 0 && portCount > -1; isPortEnabled {
-		port := r.BasePort + portCount
-		r.setServiceDiscovery(discoveryEnvVar(sv.Name, procCount), fmt.Sprint("localhost:", port))
-		fmt.Fprintln(pw, "listening on", port)
-		c.Env = append(c.Env, fmt.Sprintf("PORT=%d", port))
-	}
 	if r.ServiceDiscoveryAddr != "" {
 		c.Env = append(c.Env, fmt.Sprintf("DISCOVERY=%v", r.ServiceDiscoveryAddr))
-		c.Env = append(c.Env, r.staticServiceDiscovery...)
 	}
 	c.Env = append(c.Env, fmt.Sprintf("CHANGED_FILENAME=%v", changedFileName))
 	stderrPipe, err := c.StderrPipe()
@@ -511,7 +470,6 @@ func (r *Runner) waitFor(ctx context.Context, w io.Writer, target string) {
 		case <-ctx.Done():
 			return
 		case <-time.After(250 * time.Millisecond):
-			target = r.resolveProcessTypeAddress(target)
 			c, err := net.Dial("tcp", target)
 			if err == nil {
 				c.Close()
@@ -519,17 +477,6 @@ func (r *Runner) waitFor(ctx context.Context, w io.Writer, target string) {
 			}
 		}
 	}
-}
-
-func (r *Runner) resolveProcessTypeAddress(target string) string {
-	r.sdMu.Lock()
-	defer r.sdMu.Unlock()
-	for name, port := range r.dynamicServiceDiscovery {
-		if strings.HasPrefix(name, target) {
-			return fmt.Sprint("localhost:", port)
-		}
-	}
-	return target
 }
 
 func (r *Runner) prefixedPrinter(ctx context.Context, rdr io.Reader, name string) *bufio.Scanner {
@@ -556,16 +503,16 @@ func (r *Runner) prefixedPrinter(ctx context.Context, rdr io.Reader, name string
 	return scanner
 }
 
-func (r *Runner) setServiceDiscovery(svc, state string) {
-	r.sdMu.Lock()
-	r.dynamicServiceDiscovery[svc] = state
-	r.sdMu.Unlock()
+func (r *Runner) setServiceState(svc, state string) {
+	r.servicesMu.Lock()
+	r.serviceStates[svc] = state
+	r.servicesMu.Unlock()
 }
 
-func (r *Runner) deleteServiceDiscovery(svc string) {
-	r.sdMu.Lock()
-	delete(r.dynamicServiceDiscovery, svc)
-	r.sdMu.Unlock()
+func (r *Runner) deleteServiceState(svc string) {
+	r.servicesMu.Lock()
+	delete(r.serviceStates, svc)
+	r.servicesMu.Unlock()
 }
 
 func (s *Runner) monitorWorkDir(ctx context.Context) <-chan string {

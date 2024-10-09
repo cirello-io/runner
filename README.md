@@ -25,10 +25,6 @@ Special process type names:
 - workdir: the working directory. Environment variables are expanded. It follows
 the same rules for exec.Command.Dir.
 
-- baseport: when set to a number, it will be used as the starting point for
-the $PORT environment variable. Each process type will have its own exclusive
-$PORT variable value.
-
 - observe: a space separated list of file patterns to scan for. It uses
 filepath.Match internally. File patterns preceded with exclamation mark (!) will
 not trigger builds.
@@ -73,7 +69,6 @@ COMMANDS:
    help, h  Shows a list of commands or help for one command
 
 GLOBAL OPTIONS:
-   --port value                                         base IP port used to set $PORT for each process type. Should be multiple of 1000. (default: 0)
    --service-discovery value                            service discovery address (default: "localhost:64000")
    --formation procTypeA:# procTypeB:# ... procTypeN:#  formation allows to control how many instances of a process type are started, format: procTypeA:# procTypeB:# ... procTypeN:#. If `procType` is absent, it is not started. Empty formations start one of each process.
    --env file                                           environment file to be loaded for all processes, if the file is absent, then this parameter is ignored. (default: ".env")
@@ -97,9 +92,6 @@ how many instances of a process type are started, format: procTypeA:#
 procTypeB:# ... procTypeN:#. If `procType` is absent, it is not started. Empty
 formations start one of each process.
 
-`-port PORT` is the base IP port number used for each process type. It passes
-the port number as an environment variable named `$PORT` to the process, and
-it can be used as means to facilitate the application start up.
 
 ## Environment variables available to processes
 
@@ -107,36 +99,10 @@ Each process will have three environment variables available.
 
 `PS` is the name which the runner has christened the process.
 
-`PORT` is the IP port which the runner has indicated to that instance of a
-service to bind itself to.
-
 `DISCOVERY` is the HTTP service that returns a JSON describing each process
 type port. This assumes the process has honored the `PORT` variable and bound
 itself to the configured one.
 
-### Service discovery by environment variable
-
-Additionally to the basic three variables above, the runner will add another one
-for each instance of a process type, like what follows:
-
-```
-# format: NAME_#_PORT
-formation: web:3 worker:2
-web: server back
-worker: some-worker
-
-# Extra vars injected for both web.* and worker.*
-# WEB_0_PORT=localhost:5000
-# WEB_1_PORT=localhost:5001
-# WEB_2_PORT=localhost:5002
-# WORKER_0_PORT=localhost:5100
-# WORKER_1_PORT=localhost:5101
-```
-
-These variable names are compliant with the POSIX standards on shells section of
-IEEE Std 1003.1-2008 / IEEE POSIX P1003.2/ISO 9945.2 Shell and Tools.
-Non-compliant chars are replaced with an underscore (`_`) and name uniqueness is
-enforced.
 
 ## Support
 

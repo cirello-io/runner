@@ -89,14 +89,14 @@ func (r *Runner) serveWeb(ctx context.Context) error {
 			Filter string
 		}{sseURL.String(), filter})
 	})
-	mux.HandleFunc("/discovery", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("/state", func(w http.ResponseWriter, _ *http.Request) {
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", "    ")
-		r.sdMu.Lock()
-		defer r.sdMu.Unlock()
-		err := enc.Encode(r.dynamicServiceDiscovery)
+		r.servicesMu.Lock()
+		defer r.servicesMu.Unlock()
+		err := enc.Encode(r.serviceStates)
 		if err != nil {
-			log.Println("cannot serve service discovery request:", err)
+			log.Println("cannot serve service states request:", err)
 		}
 	})
 	mux.HandleFunc("/logs", func(w http.ResponseWriter, req *http.Request) {

@@ -32,10 +32,6 @@ Special process types:
 - workdir: the working directory. Environment variables are expanded. It follows
 the same rules for exec.Command.Dir.
 
-- baseport: when set to a number, it will be used as the starting point for
-the $PORT environment variable. Each process type will have its own exclusive
-$PORT variable value.
-
 - observe: a space separated list of file patterns to scan for. It uses
 filepath.Match internally. File patterns preceded with exclamation mark (!) will
 not trigger builds.
@@ -113,7 +109,6 @@ func main() {
 		flagset.PrintDefaults()
 		fmt.Fprintln(flagset.Output(), "")
 	}
-	flagset.Int("port", 0, "base IP port used to set $PORT for each process type. Should be multiple of 1000.")
 	flagset.String("service-discovery", "localhost:64000", "service discovery address")
 	flagset.String("formation", "", "formation allows to control how many instances of a process type are started, format: `procTypeA:# procTypeB:# ... procTypeN:#`. If `procType` is absent, it is not started. Empty formations start one of each process.")
 	flagset.String("env", ".env", "environment `file` to be loaded for all processes, if the file is absent, then this parameter is ignored.")
@@ -197,13 +192,6 @@ func mainRunner(flagset *flag.FlagSet) error {
 	}
 	if err := fd.Close(); err != nil {
 		return fmt.Errorf("cannot close spec file reader (procfile): %v", err)
-	}
-	if port, ok := flagset.Lookup("port").Value.(flag.Getter).Get().(int); ok && port > 0 {
-		basePort := port
-		if basePort < 1 || basePort > 65535 {
-			return errors.New("invalid IP port")
-		}
-		s.BasePort = basePort
 	}
 	if formation := flagset.Lookup("formation").Value.String(); formation != "" {
 		s.Formation = procfile.ParseFormation(formation)
