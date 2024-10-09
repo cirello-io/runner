@@ -129,23 +129,10 @@ func main() {
 		return
 	}
 	interceptStdout()
-	signalCh := make(chan os.Signal, 1)
-	signal.Notify(signalCh, append(haltSignals(), syscall.SIGUSR1)...)
-	for {
-		var shouldRestart bool
-		ctx, cancel := context.WithCancel(context.Background())
-		go func() {
-			if <-signalCh == syscall.SIGUSR1 {
-				shouldRestart = true
-			}
-			cancel()
-		}()
-		if err := mainRunner(ctx, flagset); err != nil && !errors.Is(err, context.Canceled) {
-			log.Fatal(err)
-		}
-		if !shouldRestart {
-			break
-		}
+	ctx, stop := signal.NotifyContext(context.Background(), haltSignals()...)
+	defer stop()
+	if err := mainRunner(ctx, flagset); err != nil && !errors.Is(err, context.Canceled) {
+		log.Fatal(err)
 	}
 }
 
