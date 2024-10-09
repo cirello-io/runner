@@ -72,7 +72,7 @@ import (
 	"strings"
 	"time"
 
-	"cirello.io/runner/v2/internal/runner"
+	"cirello.io/runner/v3/internal/runner"
 )
 
 // ParseFormation interprets a string in the format "proc: quantity

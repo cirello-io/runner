@@ -19,7 +19,7 @@ import (
 	"strings"
 	"testing"
 
-	"cirello.io/runner/v2/internal/runner"
+	"cirello.io/runner/v3/internal/runner"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
