@@ -128,15 +128,35 @@ func main() {
 		}
 		return
 	}
-	if err := mainRunner(flagset); err != nil {
-		log.Fatal(err)
+	signalCh := make(chan os.Signal, 1)
+	signal.Notify(signalCh, append(haltSignals(), syscall.SIGUSR1)...)
+	for {
+		var shouldRestart bool
+		func() {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			go func() {
+				if <-signalCh == syscall.SIGUSR1 {
+					shouldRestart = true
+				}
+				cancel()
+			}()
+			if err := mainRunner(ctx, flagset); err != nil && !errors.Is(err, context.Canceled) {
+				log.Fatal(err)
+			}
+		}()
+		if !shouldRestart {
+			break
+		}
 	}
 }
 
-func mainRunner(flagset *flag.FlagSet) error {
-	ctx, stop := signal.NotifyContext(context.Background(), haltSignals()...)
-	defer stop()
+func mainRunner(ctx context.Context, flagset *flag.FlagSet) error {
+	originalStdout := os.Stdout
 	actualStdout := os.Stdout
+	defer func() {
+		os.Stdout = originalStdout
+	}()
 	var (
 		filterPatternMu sync.RWMutex
 		filterPattern   string
