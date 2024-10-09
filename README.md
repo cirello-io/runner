@@ -1,6 +1,6 @@
 # Runner
 
-[![GoDoc](https://pkg.go.dev/badge/cirello.io/runner/v2)](https://pkg.go.dev/cirello.io/runner/v2)
+[![GoDoc](https://pkg.go.dev/badge/cirello.io/runner/v3)](https://pkg.go.dev/cirello.io/runner/v3)
 [![License](https://img.shields.io/badge/license-apache%202.0-blue.svg)](https://choosealicense.com/licenses/apache-2.0/)
 
 runner is a structured command executer for Unix systems that monitor file
@@ -66,7 +66,7 @@ USAGE:
    runner [global options] command [command options] [arguments...]
 
 VERSION:
-   v2 (4207c79dde9478596d3af8e055f00201cc7ddfec)
+   v3 (881f4e039f4ea6342464d4dc6ee3df9d362f5712)
 
 COMMANDS:
    logs     Follows logs from running processes
@@ -140,11 +140,11 @@ enforced.
 
 ## Support
 
-`runner/v2` is officially supported in Unix platforms only. It may compile on
-MS-Windows but it is not going to have the same behavior as in Unix.
+`runner/v3` is only supported in Unix platforms.
 
 ## Installation
-`go get cirello.io/runner/v2`
 
-https://pkg.go.dev/cirello.io/runner/v2
+`go get cirello.io/runner/v3`
+
+https://pkg.go.dev/cirello.io/runner/v3
 

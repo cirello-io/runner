@@ -63,7 +63,7 @@ process when it naturally terminates; "temporary" runs the process only once.
 - timeout (in process types): duration (in Go format) to wait after
 sending the signal to the process.
 */
-package main // import "cirello.io/runner/v2"
+package main // import "cirello.io/runner/v3"
 
 import (
 	"bufio"
@@ -83,10 +83,11 @@ import (
 	"runtime/debug"
 	"strings"
 	"sync"
+	"syscall"
 
-	"cirello.io/runner/v2/internal/envfile"
-	"cirello.io/runner/v2/internal/procfile"
-	"cirello.io/runner/v2/internal/runner"
+	"cirello.io/runner/v3/internal/envfile"
+	"cirello.io/runner/v3/internal/procfile"
+	"cirello.io/runner/v3/internal/runner"
 )
 
 const defaultProcfile = "Procfile"
@@ -104,7 +105,7 @@ func main() {
 	log.SetPrefix("runner: ")
 	flagset := flag.NewFlagSet("runner", flag.ContinueOnError)
 	flagset.Usage = func() {
-		fmt.Fprintln(flagset.Output(), "runner - a simple Procfile runner (v2-"+version+")")
+		fmt.Fprintln(flagset.Output(), "runner - a simple Procfile runner (v3-"+version+")")
 		fmt.Fprintln(flagset.Output(), "")
 		fmt.Fprintln(flagset.Output(), "Usage:")
 		fmt.Fprintln(flagset.Output(), " ", os.Args[0], "[options] [Procfile]")
@@ -316,4 +317,8 @@ func logs(flagset *flag.FlagSet) error {
 		}
 		errFollow = follow()
 	}
+}
+
+func haltSignals() []os.Signal {
+	return []os.Signal{syscall.SIGINT, syscall.SIGTERM}
 }

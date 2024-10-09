@@ -1,4 +1,4 @@
-module cirello.io/runner/v2
+module cirello.io/runner/v3
 
 go 1.23
 
