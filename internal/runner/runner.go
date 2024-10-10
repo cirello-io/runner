@@ -200,6 +200,7 @@ func (r *Runner) Start(rootCtx context.Context) error {
 	r.forwardLogs()
 	updates := r.monitorWorkDir(rootCtx)
 	run := make(chan string, 1)
+	defer close(run)
 	fileHashes := make(map[string]string) // fn to hash
 	c, cancel := context.WithCancel(rootCtx)
 	var wg sync.WaitGroup
@@ -523,11 +524,16 @@ func isValidGitDir(dir string) bool {
 
 func (s *Runner) monitorGitDir(ctx context.Context, dir string) <-chan string {
 	triggereds := make(chan string, 1)
+	triggereds <- ""
 	memo := make(map[string]time.Time)
 	go func() {
+		defer close(triggereds)
 		t := backoff(ctx, 50*time.Millisecond, 250*time.Millisecond, 5*time.Second)
 		for range t {
-			cmd := exec.Command("git", "-C", dir, "--no-optional-locks", "status", "--porcelain=v1")
+			if ctx.Err() != nil {
+				return
+			}
+			cmd := exec.CommandContext(ctx, "git", "-C", dir, "--no-optional-locks", "status", "--porcelain=v1")
 			var out bytes.Buffer
 			cmd.Stdout = &out
 			if err := cmd.Run(); err != nil {
@@ -587,16 +593,19 @@ func (s *Runner) monitorGitDir(ctx context.Context, dir string) <-chan string {
 			}
 		}
 	}()
-	go func() { triggereds <- "" }()
 	return triggereds
 }
 
 func (s *Runner) monitorWorkDirScanner(ctx context.Context) <-chan string {
 	triggereds := make(chan string, 1)
+	triggereds <- ""
 	memo := make(map[string]time.Time)
 	go func() {
 		t := backoff(ctx, 50*time.Millisecond, 250*time.Millisecond, 5*time.Second)
 		for range t {
+			if ctx.Err() != nil {
+				return
+			}
 			_ = filepath.Walk(s.WorkDir, func(path string, info os.FileInfo, err error) error {
 				if err != nil {
 					return err
@@ -634,7 +643,6 @@ func (s *Runner) monitorWorkDirScanner(ctx context.Context) <-chan string {
 			})
 		}
 	}()
-	go func() { triggereds <- "" }()
 	return triggereds
 }
 
