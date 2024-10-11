@@ -21,7 +21,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hash/fnv"
 	"io"
 	"log"
 	"maps"
@@ -200,10 +199,8 @@ func (r *Runner) Start(rootCtx context.Context) error {
 	}
 	r.forwardLogs()
 	var (
-		updates                       = r.monitorWorkDir(rootCtx)
-		fileHashes                    = make(map[string]string) // map of filename to content hash
-		runCancel  context.CancelFunc = func() {}
-		wg         sync.WaitGroup
+		runCancel context.CancelFunc = func() {}
+		wg        sync.WaitGroup
 	)
 	ephemeralOnce := sync.OnceFunc(func() {
 		wg.Add(1)
@@ -234,6 +231,7 @@ func (r *Runner) Start(rootCtx context.Context) error {
 		},
 	}
 	defer lastflightRun.Close()
+	updates := r.monitorWorkDir(rootCtx)
 	for {
 		select {
 		case <-rootCtx.Done():
@@ -241,32 +239,12 @@ func (r *Runner) Start(rootCtx context.Context) error {
 			wg.Wait()
 			return nil
 		case fn := <-updates:
-			newHash := calcFileHash(fn)
-			oldHash, ok := fileHashes[fn]
-			if ok && newHash == oldHash && len(updates) > 0 {
-				log.Println(fn, "didn't change, skipping")
-				continue
-			}
-			fileHashes[fn] = newHash
 			runCancel()
 			ctx, cancel := context.WithCancel(rootCtx)
 			runCancel = cancel
 			lastflightRun.Take(update{ctx, fn})
 		}
 	}
-}
-
-func calcFileHash(fn string) string {
-	f, err := os.Open(fn)
-	if err != nil {
-		return ""
-	}
-	defer f.Close()
-	h := fnv.New32a()
-	if _, err := io.Copy(h, f); err != nil {
-		return ""
-	}
-	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
 func (r *Runner) runBuilds(ctx context.Context, fn string) bool {
