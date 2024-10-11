@@ -500,13 +500,16 @@ func isValidGitDir(dir string) bool {
 func (s *Runner) monitorGitDir(ctx context.Context, dir string) <-chan string {
 	triggereds := make(chan string, 1)
 	triggereds <- ""
-	memo := make(map[string]time.Time)
 	go func() {
 		defer close(triggereds)
-		t := backoff(ctx, 50*time.Millisecond, 250*time.Millisecond, 5*time.Second)
-		for range t {
-			if ctx.Err() != nil {
+		t := time.NewTicker(50 * time.Millisecond)
+		defer t.Stop()
+		memo := make(map[string]time.Time)
+		for {
+			select {
+			case <-ctx.Done():
 				return
+			case <-t.C:
 			}
 			cmd := exec.CommandContext(ctx, "git", "-C", dir, "--no-optional-locks", "status", "--porcelain=v1")
 			var out bytes.Buffer
@@ -532,6 +535,8 @@ func (s *Runner) monitorGitDir(ctx context.Context, dir string) <-chan string {
 				gitfiles,
 				slices.Collect(maps.Keys(memo)),
 			)
+			slices.Sort(files)
+			files = slices.Compact(files)
 		filesLoop:
 			for _, path := range files {
 				for _, skipDir := range s.SkipDirs {
@@ -557,13 +562,11 @@ func (s *Runner) monitorGitDir(ctx context.Context, dir string) <-chan string {
 						memo[path] = mtime
 						memoMTime = mtime
 					}
-					if !mtime.Equal(memoMTime) {
-						memo[path] = mtime
-						select {
-						case triggereds <- path:
-						default:
-						}
+					if mtime.Equal(memoMTime) {
+						continue
 					}
+					memo[path] = mtime
+					triggereds <- path
 				}
 			}
 		}
@@ -574,12 +577,16 @@ func (s *Runner) monitorGitDir(ctx context.Context, dir string) <-chan string {
 func (s *Runner) monitorWorkDirScanner(ctx context.Context) <-chan string {
 	triggereds := make(chan string, 1)
 	triggereds <- ""
-	memo := make(map[string]time.Time)
 	go func() {
-		t := backoff(ctx, 50*time.Millisecond, 250*time.Millisecond, 5*time.Second)
-		for range t {
-			if ctx.Err() != nil {
+		defer close(triggereds)
+		t := time.NewTicker(50 * time.Millisecond)
+		defer t.Stop()
+		memo := make(map[string]time.Time)
+		for {
+			select {
+			case <-ctx.Done():
 				return
+			case <-t.C:
 			}
 			_ = filepath.Walk(s.WorkDir, func(path string, info os.FileInfo, err error) error {
 				if err != nil {
@@ -597,22 +604,20 @@ func (s *Runner) monitorWorkDirScanner(ctx context.Context) <-chan string {
 					return nil
 				}
 				for _, p := range s.Observables {
-					if match(p, path) {
-						mtime := info.ModTime()
-						memoMTime, ok := memo[path]
-						if !ok {
-							memo[path] = mtime
-							memoMTime = mtime
-						}
-						if !mtime.Equal(memoMTime) {
-							memo[path] = mtime
-							select {
-							case triggereds <- path:
-							default:
-							}
-							break
-						}
+					if !match(p, path) {
+						continue
 					}
+					mtime := info.ModTime()
+					memoMTime, ok := memo[path]
+					if !ok {
+						memo[path] = mtime
+						memoMTime = mtime
+					}
+					if mtime.Equal(memoMTime) {
+						continue
+					}
+					memo[path] = mtime
+					triggereds <- path
 				}
 				return nil
 			})
@@ -644,37 +649,6 @@ func match(p, path string) bool {
 		tmp = t
 	}
 	return true
-}
-
-func backoff(ctx context.Context, base, retry, max time.Duration) <-chan struct{} {
-	t := make(chan struct{})
-	go func() {
-		defer close(t)
-		var retries uint64
-		for {
-			if ctx.Err() != nil {
-				return
-			}
-			var d time.Duration
-			select {
-			case t <- struct{}{}:
-				d = base + time.Duration(retries)*retry
-				if d > max {
-					d = max
-				}
-				retries++
-			default:
-				d = base
-				retries = 0
-			}
-			select {
-			case <-time.After(d):
-			case <-ctx.Done():
-			}
-		}
-
-	}()
-	return t
 }
 
 func command(ctx context.Context, cmd string) *exec.Cmd {
