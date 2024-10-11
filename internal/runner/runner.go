@@ -309,7 +309,6 @@ func (r *Runner) runPermanent(changedFileName string) *oversight.Tree {
 	tree := oversight.New(
 		oversight.WithRestartStrategy(oversight.OneForAll()),
 		oversight.NeverHalt())
-	ready := make(chan struct{})
 	for j, sv := range r.Processes {
 		if strings.HasPrefix(sv.Name, "build") {
 			continue
@@ -325,7 +324,6 @@ func (r *Runner) runPermanent(changedFileName string) *oversight.Tree {
 				Name:    sv.Name,
 				Restart: oversight.Permanent(),
 				Start: func(ctx context.Context) error {
-					<-ready
 					ok := r.startProcess(ctx, sv, i, pc, changedFileName, io.Discard)
 					if !ok && sv.Restart == OnFailure {
 						return errors.New("restarting on failure")
@@ -336,7 +334,6 @@ func (r *Runner) runPermanent(changedFileName string) *oversight.Tree {
 			portCount++
 		}
 	}
-	close(ready)
 	return tree
 }
 
@@ -344,7 +341,6 @@ func (r *Runner) runEphemeral(ctx context.Context, changedFileName string) {
 	tree := oversight.New(
 		oversight.WithRestartStrategy(oversight.OneForAll()),
 		oversight.NeverHalt())
-	ready := make(chan struct{})
 	for j, sv := range r.Processes {
 		if strings.HasPrefix(sv.Name, "build") {
 			continue
@@ -358,7 +354,6 @@ func (r *Runner) runEphemeral(ctx context.Context, changedFileName string) {
 					Name:    sv.Name,
 					Restart: oversight.Permanent(),
 					Start: func(ctx context.Context) error {
-						<-ready
 						r.startProcess(ctx, sv, i, pc, changedFileName, io.Discard)
 						return nil
 					},
@@ -369,7 +364,6 @@ func (r *Runner) runEphemeral(ctx context.Context, changedFileName string) {
 					Name:    sv.Name,
 					Restart: oversight.Temporary(),
 					Start: func(ctx context.Context) error {
-						<-ready
 						r.startProcess(ctx, sv, i, pc, changedFileName, io.Discard)
 						return nil
 					},
@@ -380,7 +374,6 @@ func (r *Runner) runEphemeral(ctx context.Context, changedFileName string) {
 					Name:    sv.Name,
 					Restart: oversight.Transient(),
 					Start: func(ctx context.Context) error {
-						<-ready
 						r.startProcess(ctx, sv, i, pc, changedFileName, io.Discard)
 						return nil
 					},
@@ -389,7 +382,6 @@ func (r *Runner) runEphemeral(ctx context.Context, changedFileName string) {
 			}
 		}
 	}
-	close(ready)
 	_ = tree.Start(ctx)
 }
 
