@@ -1,4 +1,10 @@
-# Runner
+# Runner v2
+
+`runner/v2` is maintenance mode. Consider upgrading to `runner/v3`.
+
+`go get cirello.io/runner/v3`
+
+----
 
 [![GoDoc](https://pkg.go.dev/badge/cirello.io/runner/v2)](https://pkg.go.dev/cirello.io/runner/v2)
 [![License](https://img.shields.io/badge/license-apache%202.0-blue.svg)](https://choosealicense.com/licenses/apache-2.0/)
