@@ -226,8 +226,7 @@ func (r *Runner) Start(rootCtx context.Context) error {
 			}
 			ephemeralOnce()
 			tree := r.runPermanent(update.fn)
-			err := tree.Start(update.ctx)
-			log.Println("supervision tree ended", err)
+			_ = tree.Start(update.ctx)
 		},
 	}
 	defer lastflightRun.Close()
