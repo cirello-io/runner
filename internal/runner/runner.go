@@ -35,7 +35,8 @@ import (
 	"syscall"
 	"time"
 
-	oversight "cirello.io/oversight"
+	"cirello.io/oversight"
+	"cirello.io/takelatest"
 )
 
 // ErrNonUniqueProcessTypeName is returned when starting the runner, it detects
@@ -198,17 +199,45 @@ func (r *Runner) Start(rootCtx context.Context) error {
 		return fmt.Errorf("cannot serve discovery interface: %w", err)
 	}
 	r.forwardLogs()
-	updates := r.monitorWorkDir(rootCtx)
-	run := make(chan string, 1)
-	defer close(run)
-	fileHashes := make(map[string]string) // fn to hash
-	c, cancel := context.WithCancel(rootCtx)
-	var wg sync.WaitGroup
-	var ephemeralOnce sync.Once
+	var (
+		updates                       = r.monitorWorkDir(rootCtx)
+		fileHashes                    = make(map[string]string) // map of filename to content hash
+		runCancel  context.CancelFunc = func() {}
+		wg         sync.WaitGroup
+	)
+	ephemeralOnce := sync.OnceFunc(func() {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			r.runEphemeral(rootCtx, "")
+		}()
+	})
+	type update struct {
+		ctx context.Context
+		fn  string
+	}
+	lastflightRun := &takelatest.Runner[update]{
+		Func: func(ctx context.Context, update update) {
+			if ctx.Err() != nil {
+				return
+			}
+			wg.Add(1)
+			defer wg.Done()
+			if ok := r.runBuilds(update.ctx, update.fn); !ok {
+				log.Println("error during build, halted")
+				return
+			}
+			ephemeralOnce()
+			tree := r.runPermanent(update.fn)
+			err := tree.Start(update.ctx)
+			log.Println("supervision tree ended", err)
+		},
+	}
+	defer lastflightRun.Close()
 	for {
 		select {
 		case <-rootCtx.Done():
-			cancel()
+			runCancel()
 			wg.Wait()
 			return nil
 		case fn := <-updates:
@@ -219,34 +248,10 @@ func (r *Runner) Start(rootCtx context.Context) error {
 				continue
 			}
 			fileHashes[fn] = newHash
-			if ok := r.runBuilds(c, fn); !ok {
-				log.Println("error during build, halted")
-				continue
-			}
-			if l := len(updates); l == 0 {
-				cancel()
-				select {
-				case run <- fn:
-				default:
-				}
-			} else {
-				log.Println("builds pending before application start:", l)
-			}
-		case fn := <-run:
-			ephemeralOnce.Do(func() {
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
-					r.runEphemeral(rootCtx, "")
-				}()
-			})
-			c, cancel = context.WithCancel(rootCtx)
-			tree := r.runPermanent(fn)
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				tree.Start(c)
-			}()
+			runCancel()
+			ctx, cancel := context.WithCancel(rootCtx)
+			runCancel = cancel
+			lastflightRun.Take(update{ctx, fn})
 		}
 	}
 }
