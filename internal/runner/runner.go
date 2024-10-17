@@ -35,7 +35,6 @@ import (
 	"time"
 
 	"cirello.io/oversight"
-	"cirello.io/takelatest"
 )
 
 // ErrNonUniqueProcessTypeName is returned when starting the runner, it detects
@@ -209,27 +208,6 @@ func (r *Runner) Start(rootCtx context.Context) error {
 			r.runEphemeral(rootCtx, "")
 		}()
 	})
-	type update struct {
-		ctx context.Context
-		fn  string
-	}
-	lastflightRun := &takelatest.Runner[update]{
-		Func: func(ctx context.Context, update update) {
-			if ctx.Err() != nil {
-				return
-			}
-			wg.Add(1)
-			defer wg.Done()
-			if ok := r.runBuilds(update.ctx, update.fn); !ok {
-				log.Println("error during build, halted")
-				return
-			}
-			ephemeralOnce()
-			tree := r.runPermanent(update.fn)
-			_ = tree.Start(update.ctx)
-		},
-	}
-	defer lastflightRun.Close()
 	updates := r.monitorWorkDir(rootCtx)
 	for {
 		select {
@@ -241,7 +219,17 @@ func (r *Runner) Start(rootCtx context.Context) error {
 			runCancel()
 			ctx, cancel := context.WithCancel(rootCtx)
 			runCancel = cancel
-			lastflightRun.Take(update{ctx, fn})
+			if ok := r.runBuilds(ctx, fn); !ok {
+				log.Println("error during build, halted")
+				continue
+			}
+			ephemeralOnce()
+			tree := r.runPermanent(fn)
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				_ = tree.Start(ctx)
+			}()
 		}
 	}
 }
