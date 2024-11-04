@@ -498,7 +498,7 @@ func (s *Runner) monitorGitDir(ctx context.Context, dir string) <-chan string {
 				return
 			case <-t.C:
 			}
-			cmd := exec.CommandContext(ctx, "git", "-C", dir, "--no-optional-locks", "status", "--porcelain=v1")
+			cmd := exec.Command("git", "-C", dir, "--no-optional-locks", "status", "--porcelain=v1")
 			var out bytes.Buffer
 			cmd.Stdout = &out
 			if err := cmd.Run(); err != nil {
@@ -553,7 +553,11 @@ func (s *Runner) monitorGitDir(ctx context.Context, dir string) <-chan string {
 						continue
 					}
 					memo[path] = mtime
-					triggereds <- path
+					select {
+					case <-ctx.Done():
+						return
+					case triggereds <- path:
+					}
 				}
 			}
 		}
