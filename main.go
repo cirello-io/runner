@@ -70,7 +70,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"runtime/debug"
 	"strings"
 	"sync"
 	"syscall"
@@ -83,19 +82,11 @@ import (
 const defaultProcfile = "Procfile"
 
 func main() {
-	var version string
-	if info, ok := debug.ReadBuildInfo(); ok {
-		for _, kv := range info.Settings {
-			if kv.Key == "vcs.revision" {
-				version = kv.Value
-			}
-		}
-	}
 	log.SetFlags(0)
 	log.SetPrefix("runner: ")
 	flagset := flag.NewFlagSet("runner", flag.ContinueOnError)
 	flagset.Usage = func() {
-		fmt.Fprintln(flagset.Output(), "runner - a simple Procfile runner (v3-"+version+")")
+		fmt.Fprintln(flagset.Output(), "runner - a simple Procfile runner (v3)")
 		fmt.Fprintln(flagset.Output(), "")
 		fmt.Fprintln(flagset.Output(), "Usage:")
 		fmt.Fprintln(flagset.Output(), " ", os.Args[0], "[options] [Procfile]")
