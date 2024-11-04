@@ -419,6 +419,18 @@ func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, p
 }
 
 func (r *Runner) waitFor(ctx context.Context, w io.Writer, target string) {
+	target = os.Expand(target, func(name string) string {
+		for _, kv := range r.BaseEnvironment {
+			key, value, ok := strings.Cut(kv, "=")
+			if !ok {
+				continue
+			}
+			if key == name {
+				return value
+			}
+		}
+		return name
+	})
 	fmt.Fprintln(w, "waiting for", target)
 	defer fmt.Fprintln(w, "starting")
 	for {
