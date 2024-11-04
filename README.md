@@ -89,7 +89,7 @@ formations start one of each process.
 
 ## Environment variables available to processes
 
-Each process will have three environment variables available.
+Each process will have two environment variables available.
 
 `PS` is the name which the runner has christened the process.
 
