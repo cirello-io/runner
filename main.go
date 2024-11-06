@@ -70,6 +70,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"syscall"
@@ -82,11 +83,21 @@ import (
 const defaultProcfile = "Procfile"
 
 func main() {
+	version := "v3"
+	if info, ok := debug.ReadBuildInfo(); ok {
+		subversion := info.Main.Version
+		for _, setting := range info.Settings {
+			if setting.Key == "vcs.revision" {
+				subversion += "-" + setting.Value
+			}
+		}
+		version += " (" + subversion + ")"
+	}
 	log.SetFlags(0)
 	log.SetPrefix("runner: ")
 	flagset := flag.NewFlagSet("runner", flag.ContinueOnError)
 	flagset.Usage = func() {
-		fmt.Fprintln(flagset.Output(), "runner - a simple Procfile runner (v3)")
+		fmt.Fprintln(flagset.Output(), "runner - a simple Procfile runner "+version)
 		fmt.Fprintln(flagset.Output(), "")
 		fmt.Fprintln(flagset.Output(), "Usage:")
 		fmt.Fprintln(flagset.Output(), " ", os.Args[0], "[options] [Procfile]")
@@ -101,10 +112,15 @@ func main() {
 	flagset.String("only", "", "only runs some of the process types, format: `procTypeA procTypeB procTypeN`")
 	flagset.String("optional", "", "forcefully runs some of the process types, format: `procTypeA procTypeB procTypeN`")
 	flagset.String("filter", "", "service name to filter message")
+	flagset.Bool("version", false, "prints version and exit")
 	if err := flagset.Parse(os.Args[1:]); err == flag.ErrHelp {
 		return
 	} else if err != nil {
 		log.Fatal(err)
+	}
+	if flagset.Lookup("version").Value.String() == "true" {
+		log.Println(version)
+		return
 	}
 	if flagset.Arg(0) == "logs" {
 		err := logs(flagset)
