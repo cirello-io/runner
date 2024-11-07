@@ -76,7 +76,7 @@ func (r *Runner) serveWeb(ctx context.Context) error {
 	r.ServiceDiscoveryAddr = l.Addr().String()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
-		sseURL := url.URL{Scheme: "http", Host: req.Host, Path: "/logs"}
+		sseURL := url.URL{Path: "/logs"}
 		query := sseURL.Query()
 		query.Set("model", "html")
 		filter := req.URL.Query().Get("filter")
