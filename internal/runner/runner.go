@@ -262,7 +262,7 @@ func (r *Runner) runBuilds(ctx context.Context, fn string) bool {
 					}
 					r.setServiceState(normalizeByEnvVarRules(sv.Name), status)
 				}()
-				if !r.startProcess(ctx, sv, -1, -1, fn, buf) {
+				if !r.startProcess(ctx, sv, -1, fn, buf) {
 					mu.Lock()
 					ok = false
 					localOk = false
@@ -279,14 +279,12 @@ func (r *Runner) runPermanent(changedFileName string) *oversight.Tree {
 	tree := oversight.New(
 		oversight.WithRestartStrategy(oversight.OneForAll()),
 		oversight.NeverHalt())
-	for j, sv := range r.Processes {
+	for _, sv := range r.Processes {
 		if strings.HasPrefix(sv.Name, "build") {
 			continue
 		}
 		maxProc := r.Formation[sv.Name]
-		portCount := j * 100
 		for i := 0; i < maxProc; i++ {
-			sv, i, pc := sv, i, portCount
 			if sv.Restart == Loop || sv.Restart == Temporary || sv.Restart == OnFailure {
 				continue
 			}
@@ -294,14 +292,13 @@ func (r *Runner) runPermanent(changedFileName string) *oversight.Tree {
 				Name:    sv.Name,
 				Restart: oversight.Permanent(),
 				Start: func(ctx context.Context) error {
-					ok := r.startProcess(ctx, sv, i, pc, changedFileName, io.Discard)
+					ok := r.startProcess(ctx, sv, i, changedFileName, io.Discard)
 					if !ok && sv.Restart == OnFailure {
 						return errors.New("restarting on failure")
 					}
 					return nil
 				},
 			})
-			portCount++
 		}
 	}
 	return tree
@@ -311,44 +308,39 @@ func (r *Runner) runEphemeral(ctx context.Context, changedFileName string) {
 	tree := oversight.New(
 		oversight.WithRestartStrategy(oversight.OneForAll()),
 		oversight.NeverHalt())
-	for j, sv := range r.Processes {
+	for _, sv := range r.Processes {
 		if strings.HasPrefix(sv.Name, "build") {
 			continue
 		}
 		maxProc := r.Formation[sv.Name]
-		portCount := j * 100
 		for i := 0; i < maxProc; i++ {
-			sv, i, pc := sv, i, portCount
 			if sv.Restart == Loop {
 				_ = tree.Add(oversight.ChildProcessSpecification{
 					Name:    sv.Name,
 					Restart: oversight.Permanent(),
 					Start: func(ctx context.Context) error {
-						r.startProcess(ctx, sv, i, pc, changedFileName, io.Discard)
+						r.startProcess(ctx, sv, i, changedFileName, io.Discard)
 						return nil
 					},
 				})
-				portCount++
 			} else if sv.Restart == Temporary {
 				_ = tree.Add(oversight.ChildProcessSpecification{
 					Name:    sv.Name,
 					Restart: oversight.Temporary(),
 					Start: func(ctx context.Context) error {
-						r.startProcess(ctx, sv, i, pc, changedFileName, io.Discard)
+						r.startProcess(ctx, sv, i, changedFileName, io.Discard)
 						return nil
 					},
 				})
-				portCount++
 			} else if sv.Restart == OnFailure {
 				_ = tree.Add(oversight.ChildProcessSpecification{
 					Name:    sv.Name,
 					Restart: oversight.Transient(),
 					Start: func(ctx context.Context) error {
-						r.startProcess(ctx, sv, i, pc, changedFileName, io.Discard)
+						r.startProcess(ctx, sv, i, changedFileName, io.Discard)
 						return nil
 					},
 				})
-				portCount++
 			}
 		}
 	}
@@ -373,7 +365,7 @@ func normalizeByEnvVarRules(name string) string {
 	return strings.ToUpper(buf.String())
 }
 
-func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount, portCount int, changedFileName string, buf io.Writer) bool {
+func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount int, changedFileName string, buf io.Writer) bool {
 	pr, pw := io.Pipe()
 	procName := sv.Name
 	if procCount > -1 {
