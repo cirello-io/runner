@@ -249,7 +249,7 @@ func (r *Runner) runBuilds(ctx context.Context, fn string) bool {
 			r.setServiceState(normalizeByEnvVarRules(sv.Name), "building")
 			wgBuild.Add(1)
 			go func(sv *ProcessType) {
-				var buf bytes.Buffer
+				buf := &safeBuffer{buf: new(bytes.Buffer)}
 				localOk := true
 				defer wgBuild.Done()
 				defer func() {
@@ -262,7 +262,7 @@ func (r *Runner) runBuilds(ctx context.Context, fn string) bool {
 					}
 					r.setServiceState(normalizeByEnvVarRules(sv.Name), status)
 				}()
-				if !r.startProcess(ctx, sv, -1, -1, fn, &buf) {
+				if !r.startProcess(ctx, sv, -1, -1, fn, buf) {
 					mu.Lock()
 					ok = false
 					localOk = false
@@ -670,4 +670,21 @@ func command(ctx context.Context, cmd string) *exec.Cmd {
 		return nil
 	}
 	return c
+}
+
+type safeBuffer struct {
+	mu  sync.Mutex
+	buf *bytes.Buffer
+}
+
+func (s *safeBuffer) Write(p []byte) (n int, err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.buf.Write(p)
+}
+
+func (s *safeBuffer) String() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.buf.String()
 }
