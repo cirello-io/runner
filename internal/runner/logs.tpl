@@ -81,7 +81,7 @@ function dial(){
 var lastErr = ""
 function updateStatus(){
 	var xhr = new XMLHttpRequest();
-	xhr.open('GET', '/discovery');
+	xhr.open('GET', '/state');
 	xhr.onload = function() {
 		if (xhr.status != 200) {
 			console.log('Request failed.  Returned status of ' + xhr.status);
