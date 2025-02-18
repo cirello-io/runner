@@ -4,7 +4,7 @@ go 1.24
 
 require (
 	cirello.io/oversight v1.7.0
-	github.com/buildkite/terminal-to-html/v3 v3.16.5
+	github.com/buildkite/terminal-to-html/v3 v3.16.6
 	github.com/google/go-cmp v0.6.0
 	golang.org/x/tools v0.30.0
 )
