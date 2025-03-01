@@ -34,7 +34,7 @@ import (
 	"syscall"
 	"time"
 
-	"cirello.io/oversight"
+	"cirello.io/oversight/v2"
 )
 
 // ErrNonUniqueProcessTypeName is returned when starting the runner, it detects
@@ -288,17 +288,13 @@ func (r *Runner) runPermanent(changedFileName string) *oversight.Tree {
 			if sv.Restart == Loop || sv.Restart == Temporary || sv.Restart == OnFailure {
 				continue
 			}
-			_ = tree.Add(oversight.ChildProcessSpecification{
-				Name:    sv.Name,
-				Restart: oversight.Permanent(),
-				Start: func(ctx context.Context) error {
-					ok := r.startProcess(ctx, sv, i, changedFileName, io.Discard)
-					if !ok && sv.Restart == OnFailure {
-						return errors.New("restarting on failure")
-					}
-					return nil
-				},
-			})
+			_ = tree.Add(func(ctx context.Context) error {
+				ok := r.startProcess(ctx, sv, i, changedFileName, io.Discard)
+				if !ok && sv.Restart == OnFailure {
+					return errors.New("restarting on failure")
+				}
+				return nil
+			}, oversight.Permanent(), oversight.Natural(), sv.Name)
 		}
 	}
 	return tree
@@ -315,32 +311,34 @@ func (r *Runner) runEphemeral(ctx context.Context, changedFileName string) {
 		maxProc := r.Formation[sv.Name]
 		for i := 0; i < maxProc; i++ {
 			if sv.Restart == Loop {
-				_ = tree.Add(oversight.ChildProcessSpecification{
-					Name:    sv.Name,
-					Restart: oversight.Permanent(),
-					Start: func(ctx context.Context) error {
+				_ = tree.Add(
+					func(ctx context.Context) error {
 						r.startProcess(ctx, sv, i, changedFileName, io.Discard)
 						return nil
 					},
-				})
+					oversight.Permanent(),
+					oversight.Natural(),
+					sv.Name)
 			} else if sv.Restart == Temporary {
-				_ = tree.Add(oversight.ChildProcessSpecification{
-					Name:    sv.Name,
-					Restart: oversight.Temporary(),
-					Start: func(ctx context.Context) error {
+				_ = tree.Add(
+					func(ctx context.Context) error {
 						r.startProcess(ctx, sv, i, changedFileName, io.Discard)
 						return nil
 					},
-				})
+					oversight.Temporary(),
+					oversight.Natural(),
+					sv.Name,
+				)
 			} else if sv.Restart == OnFailure {
-				_ = tree.Add(oversight.ChildProcessSpecification{
-					Name:    sv.Name,
-					Restart: oversight.Transient(),
-					Start: func(ctx context.Context) error {
+				_ = tree.Add(
+					func(ctx context.Context) error {
 						r.startProcess(ctx, sv, i, changedFileName, io.Discard)
 						return nil
 					},
-				})
+					oversight.Transient(),
+					oversight.Natural(),
+					sv.Name,
+				)
 			}
 		}
 	}
