@@ -245,7 +245,7 @@ func (r *Runner) runBuilds(ctx context.Context, fn string) bool {
 			continue
 		}
 		maxProc := r.Formation[sv.Name]
-		for i := 0; i < maxProc; i++ {
+		for range maxProc {
 			r.setServiceState(normalizeByEnvVarRules(sv.Name), "building")
 			wgBuild.Add(1)
 			go func(sv *ProcessType) {
@@ -284,7 +284,7 @@ func (r *Runner) runPermanent(changedFileName string) *oversight.Tree {
 			continue
 		}
 		maxProc := r.Formation[sv.Name]
-		for i := 0; i < maxProc; i++ {
+		for i := range maxProc {
 			if sv.Restart == Loop || sv.Restart == Temporary || sv.Restart == OnFailure {
 				continue
 			}
@@ -309,7 +309,7 @@ func (r *Runner) runEphemeral(ctx context.Context, changedFileName string) {
 			continue
 		}
 		maxProc := r.Formation[sv.Name]
-		for i := 0; i < maxProc; i++ {
+		for i := range maxProc {
 			if sv.Restart == Loop {
 				_ = tree.Add(
 					func(ctx context.Context) error {
