@@ -401,8 +401,17 @@ func (r *Runner) startProcess(ctx context.Context, sv *ProcessType, procCount in
 	if sv.WaitFor != "" {
 		r.waitFor(ctx, pw, sv.WaitFor)
 	}
-	if err := c.Run(); err != nil {
-		fmt.Fprintf(pw, "exec error %s: (%s) %v\n", procName, sv.Cmd, err)
+
+	errRun := c.Run()
+	if errRun != nil {
+		if errExec := (&exec.ExitError{}); errors.As(errRun, &errExec) && errExec.ProcessState.Sys().(syscall.WaitStatus).Signaled() {
+			return true
+		} else if errSyscall := (&os.SyscallError{}); errors.As(errRun, &errSyscall) && errSyscall.Err == syscall.ECHILD {
+			return true
+		} else if errors.Is(errRun, context.Canceled) {
+			return true
+		}
+		fmt.Fprintf(pw, "exec error %s: (%s) %v\n", procName, sv.Cmd, errRun)
 		return false
 	}
 	return true
@@ -503,8 +512,15 @@ func (s *Runner) monitorGitDir(ctx context.Context, dir string) <-chan string {
 			cmd := exec.Command("git", "-C", dir, "--no-optional-locks", "status", "--porcelain=v1")
 			var out bytes.Buffer
 			cmd.Stdout = &out
-			if err := cmd.Run(); err != nil {
-				log.Println("cannot run git status:", err)
+			if errRun := cmd.Run(); errRun != nil {
+				if errExec := (&exec.ExitError{}); errors.As(errRun, &errExec) && errExec.ProcessState.Sys().(syscall.WaitStatus).Signaled() {
+					continue
+				} else if errSyscall := (&os.SyscallError{}); errors.As(errRun, &errSyscall) && errSyscall.Err == syscall.ECHILD {
+					continue
+				} else if errors.Is(errRun, context.Canceled) {
+					continue
+				}
+				log.Println("cannot run git status:", errRun)
 				continue
 			}
 			var gitfiles []string
