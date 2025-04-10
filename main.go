@@ -104,6 +104,8 @@ func main() {
 		fmt.Fprintln(flagset.Output(), "")
 		flagset.PrintDefaults()
 		fmt.Fprintln(flagset.Output(), "")
+		fmt.Fprintln(flagset.Output(), "Other commands:")
+		fmt.Fprintln(flagset.Output(), " ", os.Args[0], "logs", "- reports logs of the currently active runner")
 	}
 	flagset.String("service-discovery", "localhost:64000", "service discovery address")
 	flagset.String("formation", "", "formation allows to control how many instances of a process type are started, format: `procTypeA:# procTypeB:# ... procTypeN:#`. If `procType` is absent, it is not started. Empty formations start one of each process.")
