@@ -114,6 +114,7 @@ func main() {
 	flagset.String("only", "", "only runs some of the process types, format: `procTypeA procTypeB procTypeN`")
 	flagset.String("optional", "", "forcefully runs some of the process types, format: `procTypeA procTypeB procTypeN`")
 	flagset.String("filter", "", "service name to filter message")
+	flagset.String("tee", "", "tees output to file")
 	flagset.Bool("version", false, "prints version and exit")
 	if err := flagset.Parse(os.Args[1:]); err == flag.ErrHelp {
 		return
@@ -131,7 +132,16 @@ func main() {
 		}
 		return
 	}
-	interceptStdout()
+	var actualStdout io.Writer = os.Stdout
+	if teeFn := flagset.Lookup("tee").Value.String(); teeFn != "" {
+		fd, err := os.Create(teeFn)
+		if err != nil {
+			log.Fatal("cannot create tee file: %w", err)
+		}
+		defer fd.Close()
+		actualStdout = io.MultiWriter(os.Stdout, fd)
+	}
+	interceptStdout(actualStdout)
 	ctx, stop := signal.NotifyContext(context.Background(), haltSignals()...)
 	defer stop()
 	if err := mainRunner(ctx, flagset); err != nil && !errors.Is(err, context.Canceled) {
@@ -139,8 +149,7 @@ func main() {
 	}
 }
 
-func interceptStdout() {
-	actualStdout := os.Stdout
+func interceptStdout(actualStdout io.Writer) {
 	var (
 		filterPatternMu sync.RWMutex
 		filterPattern   string
