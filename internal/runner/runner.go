@@ -302,7 +302,7 @@ func (r *Runner) runPermanent(changedFileName string) *oversight.Tree {
 
 func (r *Runner) runEphemeral(ctx context.Context, changedFileName string) {
 	tree := oversight.New(
-		oversight.WithRestartStrategy(oversight.OneForAll()),
+		oversight.WithRestartStrategy(oversight.OneForOne()),
 		oversight.NeverHalt())
 	for _, sv := range r.Processes {
 		if strings.HasPrefix(sv.Name, "build") {
