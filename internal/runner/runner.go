@@ -483,9 +483,16 @@ func (r *Runner) deleteServiceState(svc string) {
 }
 
 func (s *Runner) monitorWorkDir(ctx context.Context) <-chan string {
-	if isValidGitDir(s.WorkDir) {
-		log.Println("observing git directory for changes")
-		return s.monitorGitDir(ctx, s.WorkDir)
+	if slices.Contains(s.Observables, ".git") {
+		s.Observables = slices.DeleteFunc(s.Observables, func(observable string) bool {
+			return observable == ".git"
+		})
+		if isValidGitDir(s.WorkDir) {
+			log.Println("observing git directory for changes")
+			return s.monitorGitDir(ctx, s.WorkDir)
+		} else {
+			log.Println("cannot detect git directory, falling back to file system watcher")
+		}
 	}
 	return s.monitorWorkDirScanner(ctx)
 }
