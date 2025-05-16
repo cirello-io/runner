@@ -591,13 +591,17 @@ func (s *Runner) monitorGitDir(ctx context.Context, dir string) <-chan string {
 }
 
 func (s *Runner) monitorWorkDirScanner(ctx context.Context) <-chan string {
+	type memoFile struct {
+		time time.Time
+		size int64
+	}
 	triggereds := make(chan string, 1)
 	triggereds <- ""
 	go func() {
 		defer close(triggereds)
 		t := time.NewTicker(50 * time.Millisecond)
 		defer t.Stop()
-		memo := make(map[string]time.Time)
+		memo := make(map[string]memoFile)
 		for {
 			select {
 			case <-ctx.Done():
@@ -624,15 +628,23 @@ func (s *Runner) monitorWorkDirScanner(ctx context.Context) <-chan string {
 						continue
 					}
 					mtime := info.ModTime()
-					memoMTime, ok := memo[path]
+					fsize := info.Size()
+					mf, ok := memo[path]
 					if !ok {
-						memo[path] = mtime
-						memoMTime = mtime
+						memo[path] = memoFile{
+							time: mtime,
+							size: fsize,
+						}
+						mf = memo[path]
 					}
-					if mtime.Equal(memoMTime) {
+					if mtime.Equal(mf.time) && fsize == mf.size {
 						continue
 					}
-					memo[path] = mtime
+					fmt.Println(">>>> file changed:", path)
+					memo[path] = memoFile{
+						time: mtime,
+						size: fsize,
+					}
 					triggereds <- path
 				}
 				return nil
