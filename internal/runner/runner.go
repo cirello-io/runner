@@ -640,7 +640,6 @@ func (s *Runner) monitorWorkDirScanner(ctx context.Context) <-chan string {
 					if mtime.Equal(mf.time) && fsize == mf.size {
 						continue
 					}
-					fmt.Println(">>>> file changed:", path)
 					memo[path] = memoFile{
 						time: mtime,
 						size: fsize,
