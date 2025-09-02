@@ -249,6 +249,10 @@ func (r *Runner) runBuilds(ctx context.Context, fn string) bool {
 			r.setServiceState(normalizeByEnvVarRules(sv.Name), "building")
 			wgBuild.Add(1)
 			go func(sv *ProcessType) {
+				svName := sv.Name
+				if maxProc > 1 {
+					svName = fmt.Sprintf("%v.%v", sv.Name, maxProc)
+				}
 				buf := &safeBuffer{buf: new(bytes.Buffer)}
 				localOk := true
 				defer wgBuild.Done()
@@ -256,11 +260,11 @@ func (r *Runner) runBuilds(ctx context.Context, fn string) bool {
 					status := "done"
 					if !localOk {
 						status = "errored"
-						r.setServiceState("ERROR_"+normalizeByEnvVarRules(sv.Name), buf.String())
+						r.setServiceState("ERROR_"+normalizeByEnvVarRules(svName), buf.String())
 					} else {
-						r.deleteServiceState("ERROR_" + normalizeByEnvVarRules(sv.Name))
+						r.deleteServiceState("ERROR_" + normalizeByEnvVarRules(svName))
 					}
-					r.setServiceState(normalizeByEnvVarRules(sv.Name), status)
+					r.setServiceState(normalizeByEnvVarRules(svName), status)
 				}()
 				if !r.startProcess(ctx, sv, -1, fn, buf) {
 					mu.Lock()
