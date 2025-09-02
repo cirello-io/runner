@@ -294,7 +294,7 @@ func (r *Runner) runPermanent(changedFileName string) *oversight.Tree {
 					return errors.New("restarting on failure")
 				}
 				return nil
-			}, oversight.Permanent(), oversight.Natural(), sv.Name)
+			}, oversight.Permanent(), oversight.Natural(), fmt.Sprint(sv.Name, ".", i))
 		}
 	}
 	return tree
