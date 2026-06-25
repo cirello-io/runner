@@ -15,8 +15,34 @@
 package runner
 
 import (
+	"context"
 	"testing"
 )
+
+func TestMonitorWorkDirWithoutObservablesRunsOnce(t *testing.T) {
+	r := New()
+	r.WorkDir = t.TempDir()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	updates := r.monitorWorkDir(ctx)
+
+	got, ok := <-updates
+	if !ok {
+		t.Fatal("updates channel closed before initial trigger")
+	}
+	if got != "" {
+		t.Fatalf("initial trigger = %q, want empty string", got)
+	}
+	select {
+	case got, ok := <-updates:
+		if !ok {
+			t.Fatal("updates channel closed after initial trigger")
+		}
+		t.Fatalf("unexpected follow-up trigger %q", got)
+	default:
+	}
+}
 
 func TestMatch(t *testing.T) {
 	type args struct {

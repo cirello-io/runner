@@ -487,6 +487,10 @@ func (r *Runner) deleteServiceState(svc string) {
 }
 
 func (s *Runner) monitorWorkDir(ctx context.Context) <-chan string {
+	hasAnyObservableDir := len(s.Observables) > 0
+	if !hasAnyObservableDir {
+		return s.noopMonitor()
+	}
 	if slices.Contains(s.Observables, ".git") {
 		s.Observables = slices.DeleteFunc(s.Observables, func(observable string) bool {
 			return observable == ".git"
@@ -499,6 +503,12 @@ func (s *Runner) monitorWorkDir(ctx context.Context) <-chan string {
 		}
 	}
 	return s.monitorWorkDirScanner(ctx)
+}
+
+func (s *Runner) noopMonitor() <-chan string {
+	triggereds := make(chan string, 1)
+	triggereds <- ""
+	return triggereds
 }
 
 func isValidGitDir(dir string) bool {
