@@ -4,5 +4,5 @@ github.com/buildkite/terminal-to-html/v3 v3.17.3 h1:Q4l5cgoDsP5gTu91wy+Yku1h21qR
 github.com/buildkite/terminal-to-html/v3 v3.17.3/go.mod h1:VpG+CDQqu4/bzOWR6gwYF5tB3P+Ts4hVgdxXpqLLY4s=
 github.com/google/go-cmp v0.7.0 h1:wk8382ETsv4JYUZwIsn6YpYiWiBsYLSJiTsyBybVuN8=
 github.com/google/go-cmp v0.7.0/go.mod h1:pXiqmnSA92OHEEa9HXL2W4E7lf9JzCmGVUdgjX3N/iU=
-golang.org/x/tools v0.52.0 h1:ryxg4U63oaUYk7uOLTF37n43f4qgtGvqV4Ioit1BaEs=
-golang.org/x/tools v0.52.0/go.mod h1:ItcP5UNaVGG+Yc4eIYmaFLNJ4soEopkx5Y2d4lcEurs=
+golang.org/x/tools v0.53.0 h1:T3bIVp3zjHG9/aEiFk6BXxFh5/Vcbk7JA5hRq1cG8IU=
+golang.org/x/tools v0.53.0/go.mod h1:vg+Vrb7y5mTTtxZLTdbTK8G745wcaLcsCtgCWgQONCI=
